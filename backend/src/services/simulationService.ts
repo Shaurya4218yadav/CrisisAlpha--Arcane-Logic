@@ -86,6 +86,7 @@ export function createSimulation(config: Partial<SimulationConfig>, userId: stri
   // Create shadow graph overlay
   createOverlay(id);
 
+
   console.log(`[Sim] ✅ Simulation ${id} created: "${fullConfig.hypothesis.title}" (${maxTicks} ticks)`);
   return session;
 }
