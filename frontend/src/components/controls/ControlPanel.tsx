@@ -114,7 +114,7 @@ export default function ControlPanel() {
   };
 
   return (
-    <div className="h-full flex flex-col gap-3 overflow-y-auto custom-scrollbar pr-1">
+    <div className="flex flex-col gap-3 pr-1 pb-24 lg:pb-0">
       {/* Header */}
       <div className="text-center pb-2 border-b border-white/5">
         <h2 className="text-sm font-bold text-white uppercase tracking-widest">
