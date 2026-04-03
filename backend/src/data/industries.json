@@ -1,0 +1,52 @@
+{
+  "industries": {
+    "automotive": {
+      "name": "Automotive",
+      "description": "Global automotive manufacturing and supply chain",
+      "criticalTransportTypes": ["sea", "road"],
+      "demandMultiplier": 1.2,
+      "supplyChainDepth": 4,
+      "fuelExposure": 0.7,
+      "policyExposure": 0.5,
+      "conflictExposure": 0.6,
+      "keyRegions": ["East Asia", "Europe", "South Asia"],
+      "icon": "🚗"
+    },
+    "energy": {
+      "name": "Energy",
+      "description": "Oil, gas, and energy resource distribution",
+      "criticalTransportTypes": ["sea", "road"],
+      "demandMultiplier": 1.5,
+      "supplyChainDepth": 2,
+      "fuelExposure": 0.3,
+      "policyExposure": 0.8,
+      "conflictExposure": 0.9,
+      "keyRegions": ["Middle East", "South Asia", "Southeast Asia"],
+      "icon": "⚡"
+    },
+    "pharma": {
+      "name": "Pharmaceuticals",
+      "description": "Pharmaceutical manufacturing and distribution",
+      "criticalTransportTypes": ["air", "sea"],
+      "demandMultiplier": 1.0,
+      "supplyChainDepth": 3,
+      "fuelExposure": 0.5,
+      "policyExposure": 0.6,
+      "conflictExposure": 0.4,
+      "keyRegions": ["South Asia", "Europe", "East Asia"],
+      "icon": "💊"
+    },
+    "consumer_goods": {
+      "name": "Consumer Goods",
+      "description": "Fast-moving consumer goods and retail supply",
+      "criticalTransportTypes": ["sea", "rail"],
+      "demandMultiplier": 1.3,
+      "supplyChainDepth": 5,
+      "fuelExposure": 0.6,
+      "policyExposure": 0.4,
+      "conflictExposure": 0.5,
+      "keyRegions": ["East Asia", "Southeast Asia", "North America"],
+      "icon": "📦"
+    }
+  }
+}

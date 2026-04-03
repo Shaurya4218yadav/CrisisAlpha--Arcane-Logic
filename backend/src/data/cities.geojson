@@ -1,0 +1,325 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "shanghai",
+        "name": "Shanghai",
+        "country": "China",
+        "region": "East Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.7, "energy": 0.4, "pharma": 0.3, "consumer_goods": 0.9 },
+        "baseDemand": 90,
+        "baseSupply": 85,
+        "inventoryBuffer": 0.6,
+        "resilienceScore": 0.7
+      },
+      "geometry": { "type": "Point", "coordinates": [121.4737, 31.2304] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "singapore",
+        "name": "Singapore",
+        "country": "Singapore",
+        "region": "Southeast Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.5, "energy": 0.8, "pharma": 0.6, "consumer_goods": 0.7 },
+        "baseDemand": 70,
+        "baseSupply": 60,
+        "inventoryBuffer": 0.7,
+        "resilienceScore": 0.85
+      },
+      "geometry": { "type": "Point", "coordinates": [103.8198, 1.3521] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "dubai",
+        "name": "Dubai",
+        "country": "UAE",
+        "region": "Middle East",
+        "nodeType": "hub",
+        "industryWeights": { "automotive": 0.4, "energy": 0.9, "pharma": 0.3, "consumer_goods": 0.6 },
+        "baseDemand": 65,
+        "baseSupply": 80,
+        "inventoryBuffer": 0.8,
+        "resilienceScore": 0.8
+      },
+      "geometry": { "type": "Point", "coordinates": [55.2708, 25.2048] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "mumbai",
+        "name": "Mumbai",
+        "country": "India",
+        "region": "South Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.6, "energy": 0.5, "pharma": 0.8, "consumer_goods": 0.7 },
+        "baseDemand": 80,
+        "baseSupply": 55,
+        "inventoryBuffer": 0.4,
+        "resilienceScore": 0.5
+      },
+      "geometry": { "type": "Point", "coordinates": [72.8777, 19.0760] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "rotterdam",
+        "name": "Rotterdam",
+        "country": "Netherlands",
+        "region": "Europe",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.8, "energy": 0.7, "pharma": 0.5, "consumer_goods": 0.8 },
+        "baseDemand": 85,
+        "baseSupply": 75,
+        "inventoryBuffer": 0.7,
+        "resilienceScore": 0.85
+      },
+      "geometry": { "type": "Point", "coordinates": [4.4777, 51.9244] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "suez",
+        "name": "Suez Canal Zone",
+        "country": "Egypt",
+        "region": "Middle East",
+        "nodeType": "hub",
+        "industryWeights": { "automotive": 0.3, "energy": 0.9, "pharma": 0.2, "consumer_goods": 0.5 },
+        "baseDemand": 30,
+        "baseSupply": 20,
+        "inventoryBuffer": 0.3,
+        "resilienceScore": 0.4
+      },
+      "geometry": { "type": "Point", "coordinates": [32.3019, 30.0444] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "istanbul",
+        "name": "Istanbul",
+        "country": "Turkey",
+        "region": "Europe",
+        "nodeType": "hub",
+        "industryWeights": { "automotive": 0.6, "energy": 0.5, "pharma": 0.4, "consumer_goods": 0.6 },
+        "baseDemand": 60,
+        "baseSupply": 50,
+        "inventoryBuffer": 0.5,
+        "resilienceScore": 0.6
+      },
+      "geometry": { "type": "Point", "coordinates": [28.9784, 41.0082] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tokyo",
+        "name": "Tokyo",
+        "country": "Japan",
+        "region": "East Asia",
+        "nodeType": "city",
+        "industryWeights": { "automotive": 0.95, "energy": 0.4, "pharma": 0.7, "consumer_goods": 0.8 },
+        "baseDemand": 95,
+        "baseSupply": 70,
+        "inventoryBuffer": 0.8,
+        "resilienceScore": 0.9
+      },
+      "geometry": { "type": "Point", "coordinates": [139.6917, 35.6895] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "losangeles",
+        "name": "Los Angeles",
+        "country": "USA",
+        "region": "North America",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.7, "energy": 0.5, "pharma": 0.4, "consumer_goods": 0.9 },
+        "baseDemand": 90,
+        "baseSupply": 65,
+        "inventoryBuffer": 0.6,
+        "resilienceScore": 0.75
+      },
+      "geometry": { "type": "Point", "coordinates": [-118.2437, 33.9425] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hamburg",
+        "name": "Hamburg",
+        "country": "Germany",
+        "region": "Europe",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.9, "energy": 0.6, "pharma": 0.6, "consumer_goods": 0.7 },
+        "baseDemand": 80,
+        "baseSupply": 70,
+        "inventoryBuffer": 0.7,
+        "resilienceScore": 0.8
+      },
+      "geometry": { "type": "Point", "coordinates": [9.9937, 53.5511] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "karachi",
+        "name": "Karachi",
+        "country": "Pakistan",
+        "region": "South Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.3, "energy": 0.6, "pharma": 0.4, "consumer_goods": 0.5 },
+        "baseDemand": 50,
+        "baseSupply": 35,
+        "inventoryBuffer": 0.3,
+        "resilienceScore": 0.35
+      },
+      "geometry": { "type": "Point", "coordinates": [67.0011, 24.8607] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "riyadh",
+        "name": "Riyadh",
+        "country": "Saudi Arabia",
+        "region": "Middle East",
+        "nodeType": "city",
+        "industryWeights": { "automotive": 0.3, "energy": 0.95, "pharma": 0.2, "consumer_goods": 0.4 },
+        "baseDemand": 55,
+        "baseSupply": 90,
+        "inventoryBuffer": 0.7,
+        "resilienceScore": 0.65
+      },
+      "geometry": { "type": "Point", "coordinates": [46.6753, 24.7136] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "hongkong",
+        "name": "Hong Kong",
+        "country": "China",
+        "region": "East Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.4, "energy": 0.3, "pharma": 0.5, "consumer_goods": 0.85 },
+        "baseDemand": 75,
+        "baseSupply": 60,
+        "inventoryBuffer": 0.6,
+        "resilienceScore": 0.75
+      },
+      "geometry": { "type": "Point", "coordinates": [114.1694, 22.3193] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "chennai",
+        "name": "Chennai",
+        "country": "India",
+        "region": "South Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.8, "energy": 0.3, "pharma": 0.7, "consumer_goods": 0.5 },
+        "baseDemand": 60,
+        "baseSupply": 50,
+        "inventoryBuffer": 0.4,
+        "resilienceScore": 0.5
+      },
+      "geometry": { "type": "Point", "coordinates": [80.2707, 13.0827] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "newyork",
+        "name": "New York",
+        "country": "USA",
+        "region": "North America",
+        "nodeType": "city",
+        "industryWeights": { "automotive": 0.5, "energy": 0.4, "pharma": 0.8, "consumer_goods": 0.9 },
+        "baseDemand": 95,
+        "baseSupply": 60,
+        "inventoryBuffer": 0.65,
+        "resilienceScore": 0.8
+      },
+      "geometry": { "type": "Point", "coordinates": [-74.006, 40.7128] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "london",
+        "name": "London",
+        "country": "UK",
+        "region": "Europe",
+        "nodeType": "city",
+        "industryWeights": { "automotive": 0.5, "energy": 0.5, "pharma": 0.7, "consumer_goods": 0.8 },
+        "baseDemand": 85,
+        "baseSupply": 55,
+        "inventoryBuffer": 0.6,
+        "resilienceScore": 0.8
+      },
+      "geometry": { "type": "Point", "coordinates": [-0.1278, 51.5074] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "busan",
+        "name": "Busan",
+        "country": "South Korea",
+        "region": "East Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.8, "energy": 0.3, "pharma": 0.4, "consumer_goods": 0.7 },
+        "baseDemand": 70,
+        "baseSupply": 65,
+        "inventoryBuffer": 0.65,
+        "resilienceScore": 0.8
+      },
+      "geometry": { "type": "Point", "coordinates": [129.0756, 35.1796] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "colombo",
+        "name": "Colombo",
+        "country": "Sri Lanka",
+        "region": "South Asia",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.2, "energy": 0.3, "pharma": 0.3, "consumer_goods": 0.6 },
+        "baseDemand": 35,
+        "baseSupply": 25,
+        "inventoryBuffer": 0.3,
+        "resilienceScore": 0.4
+      },
+      "geometry": { "type": "Point", "coordinates": [79.8612, 6.9271] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "jeddah",
+        "name": "Jeddah",
+        "country": "Saudi Arabia",
+        "region": "Middle East",
+        "nodeType": "port",
+        "industryWeights": { "automotive": 0.2, "energy": 0.85, "pharma": 0.2, "consumer_goods": 0.4 },
+        "baseDemand": 45,
+        "baseSupply": 70,
+        "inventoryBuffer": 0.6,
+        "resilienceScore": 0.6
+      },
+      "geometry": { "type": "Point", "coordinates": [39.1925, 21.4858] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "tehran",
+        "name": "Tehran",
+        "country": "Iran",
+        "region": "Middle East",
+        "nodeType": "city",
+        "industryWeights": { "automotive": 0.4, "energy": 0.9, "pharma": 0.3, "consumer_goods": 0.3 },
+        "baseDemand": 50,
+        "baseSupply": 75,
+        "inventoryBuffer": 0.35,
+        "resilienceScore": 0.35
+      },
+      "geometry": { "type": "Point", "coordinates": [51.3890, 35.6892] }
+    }
+  ]
+}

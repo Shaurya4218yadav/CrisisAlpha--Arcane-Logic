@@ -1,0 +1,64 @@
+{
+  "presets": [
+    {
+      "id": "suez_blockade",
+      "name": "Suez Canal Blockade",
+      "description": "A major shipping vessel has blocked the Suez Canal, severing the critical East-West maritime corridor.",
+      "originNodeId": "suez",
+      "industry": "consumer_goods",
+      "conflictIntensity": 0.3,
+      "fuelShortage": 0.5,
+      "policyRestriction": 0.6,
+      "durationDays": 14,
+      "icon": "🚢"
+    },
+    {
+      "id": "gulf_conflict",
+      "name": "Persian Gulf Conflict",
+      "description": "Escalating military tensions in the Persian Gulf region threatening energy supply routes.",
+      "originNodeId": "dubai",
+      "industry": "energy",
+      "conflictIntensity": 0.9,
+      "fuelShortage": 0.8,
+      "policyRestriction": 0.7,
+      "durationDays": 21,
+      "icon": "⚔️"
+    },
+    {
+      "id": "south_asia_sanctions",
+      "name": "South Asia Sanctions",
+      "description": "New trade sanctions imposed on South Asian nations affecting pharmaceutical exports.",
+      "originNodeId": "mumbai",
+      "industry": "pharma",
+      "conflictIntensity": 0.4,
+      "fuelShortage": 0.3,
+      "policyRestriction": 0.9,
+      "durationDays": 30,
+      "icon": "🚫"
+    },
+    {
+      "id": "east_asia_port_strike",
+      "name": "East Asia Port Strike",
+      "description": "Coordinated port worker strikes across major East Asian shipping hubs.",
+      "originNodeId": "shanghai",
+      "industry": "automotive",
+      "conflictIntensity": 0.5,
+      "fuelShortage": 0.2,
+      "policyRestriction": 0.4,
+      "durationDays": 10,
+      "icon": "🏭"
+    },
+    {
+      "id": "iran_strait_crisis",
+      "name": "Strait of Hormuz Crisis",
+      "description": "Iran threatens to close the Strait of Hormuz, disrupting 20%+ of global oil transit.",
+      "originNodeId": "tehran",
+      "industry": "energy",
+      "conflictIntensity": 0.85,
+      "fuelShortage": 0.9,
+      "policyRestriction": 0.8,
+      "durationDays": 14,
+      "icon": "🛢️"
+    }
+  ]
+}

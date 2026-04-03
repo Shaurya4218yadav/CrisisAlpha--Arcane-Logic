@@ -1,0 +1,501 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_shanghai_singapore",
+        "source": "shanghai",
+        "target": "singapore",
+        "transportType": "sea",
+        "capacity": 90,
+        "baseCost": 45,
+        "baseTransitTime": 5,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.6
+      },
+      "geometry": { "type": "LineString", "coordinates": [[121.4737, 31.2304], [114.1694, 22.3193], [103.8198, 1.3521]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_singapore_dubai",
+        "source": "singapore",
+        "target": "dubai",
+        "transportType": "sea",
+        "capacity": 85,
+        "baseCost": 60,
+        "baseTransitTime": 8,
+        "fuelSensitivity": 0.8,
+        "policySensitivity": 0.4,
+        "riskTransmissionWeight": 0.7
+      },
+      "geometry": { "type": "LineString", "coordinates": [[103.8198, 1.3521], [80.2707, 13.0827], [72.8777, 19.0760], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_dubai_suez",
+        "source": "dubai",
+        "target": "suez",
+        "transportType": "sea",
+        "capacity": 80,
+        "baseCost": 35,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.7,
+        "riskTransmissionWeight": 0.8
+      },
+      "geometry": { "type": "LineString", "coordinates": [[55.2708, 25.2048], [39.1925, 21.4858], [32.3019, 30.0444]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_suez_rotterdam",
+        "source": "suez",
+        "target": "rotterdam",
+        "transportType": "sea",
+        "capacity": 85,
+        "baseCost": 50,
+        "baseTransitTime": 7,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.5,
+        "riskTransmissionWeight": 0.65
+      },
+      "geometry": { "type": "LineString", "coordinates": [[32.3019, 30.0444], [14.4378, 35.9375], [4.4777, 51.9244]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_suez_istanbul",
+        "source": "suez",
+        "target": "istanbul",
+        "transportType": "sea",
+        "capacity": 60,
+        "baseCost": 30,
+        "baseTransitTime": 3,
+        "fuelSensitivity": 0.5,
+        "policySensitivity": 0.6,
+        "riskTransmissionWeight": 0.7
+      },
+      "geometry": { "type": "LineString", "coordinates": [[32.3019, 30.0444], [28.9784, 41.0082]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_mumbai_dubai",
+        "source": "mumbai",
+        "target": "dubai",
+        "transportType": "sea",
+        "capacity": 75,
+        "baseCost": 30,
+        "baseTransitTime": 3,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.65
+      },
+      "geometry": { "type": "LineString", "coordinates": [[72.8777, 19.0760], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_mumbai_singapore",
+        "source": "mumbai",
+        "target": "singapore",
+        "transportType": "sea",
+        "capacity": 70,
+        "baseCost": 50,
+        "baseTransitTime": 6,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.55
+      },
+      "geometry": { "type": "LineString", "coordinates": [[72.8777, 19.0760], [79.8612, 6.9271], [103.8198, 1.3521]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_shanghai_tokyo",
+        "source": "shanghai",
+        "target": "tokyo",
+        "transportType": "sea",
+        "capacity": 80,
+        "baseCost": 25,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.5,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[121.4737, 31.2304], [139.6917, 35.6895]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_shanghai_busan",
+        "source": "shanghai",
+        "target": "busan",
+        "transportType": "sea",
+        "capacity": 75,
+        "baseCost": 20,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.4,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[121.4737, 31.2304], [129.0756, 35.1796]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_shanghai_losangeles",
+        "source": "shanghai",
+        "target": "losangeles",
+        "transportType": "sea",
+        "capacity": 90,
+        "baseCost": 80,
+        "baseTransitTime": 14,
+        "fuelSensitivity": 0.9,
+        "policySensitivity": 0.4,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[121.4737, 31.2304], [180, 40], [-150, 38], [-118.2437, 33.9425]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_rotterdam_hamburg",
+        "source": "rotterdam",
+        "target": "hamburg",
+        "transportType": "rail",
+        "capacity": 70,
+        "baseCost": 15,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.3,
+        "policySensitivity": 0.1,
+        "riskTransmissionWeight": 0.4
+      },
+      "geometry": { "type": "LineString", "coordinates": [[4.4777, 51.9244], [9.9937, 53.5511]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_rotterdam_london",
+        "source": "rotterdam",
+        "target": "london",
+        "transportType": "sea",
+        "capacity": 65,
+        "baseCost": 20,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.4,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.4
+      },
+      "geometry": { "type": "LineString", "coordinates": [[4.4777, 51.9244], [-0.1278, 51.5074]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_istanbul_rotterdam",
+        "source": "istanbul",
+        "target": "rotterdam",
+        "transportType": "road",
+        "capacity": 50,
+        "baseCost": 40,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.8,
+        "policySensitivity": 0.6,
+        "riskTransmissionWeight": 0.55
+      },
+      "geometry": { "type": "LineString", "coordinates": [[28.9784, 41.0082], [16.3738, 48.2082], [4.4777, 51.9244]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_karachi_dubai",
+        "source": "karachi",
+        "target": "dubai",
+        "transportType": "sea",
+        "capacity": 60,
+        "baseCost": 25,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.5,
+        "riskTransmissionWeight": 0.7
+      },
+      "geometry": { "type": "LineString", "coordinates": [[67.0011, 24.8607], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_karachi_mumbai",
+        "source": "karachi",
+        "target": "mumbai",
+        "transportType": "sea",
+        "capacity": 55,
+        "baseCost": 20,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.5,
+        "policySensitivity": 0.7,
+        "riskTransmissionWeight": 0.65
+      },
+      "geometry": { "type": "LineString", "coordinates": [[67.0011, 24.8607], [72.8777, 19.0760]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_mumbai_chennai",
+        "source": "mumbai",
+        "target": "chennai",
+        "transportType": "rail",
+        "capacity": 60,
+        "baseCost": 15,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.3,
+        "policySensitivity": 0.1,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[72.8777, 19.0760], [80.2707, 13.0827]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_chennai_singapore",
+        "source": "chennai",
+        "target": "singapore",
+        "transportType": "sea",
+        "capacity": 60,
+        "baseCost": 35,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.55
+      },
+      "geometry": { "type": "LineString", "coordinates": [[80.2707, 13.0827], [79.8612, 6.9271], [103.8198, 1.3521]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_colombo_singapore",
+        "source": "colombo",
+        "target": "singapore",
+        "transportType": "sea",
+        "capacity": 50,
+        "baseCost": 30,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[79.8612, 6.9271], [103.8198, 1.3521]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_colombo_dubai",
+        "source": "colombo",
+        "target": "dubai",
+        "transportType": "sea",
+        "capacity": 45,
+        "baseCost": 35,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.55
+      },
+      "geometry": { "type": "LineString", "coordinates": [[79.8612, 6.9271], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_riyadh_dubai",
+        "source": "riyadh",
+        "target": "dubai",
+        "transportType": "road",
+        "capacity": 55,
+        "baseCost": 20,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.6
+      },
+      "geometry": { "type": "LineString", "coordinates": [[46.6753, 24.7136], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_riyadh_jeddah",
+        "source": "riyadh",
+        "target": "jeddah",
+        "transportType": "road",
+        "capacity": 50,
+        "baseCost": 15,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.1,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[46.6753, 24.7136], [39.1925, 21.4858]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_jeddah_suez",
+        "source": "jeddah",
+        "target": "suez",
+        "transportType": "sea",
+        "capacity": 70,
+        "baseCost": 25,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.5,
+        "policySensitivity": 0.6,
+        "riskTransmissionWeight": 0.7
+      },
+      "geometry": { "type": "LineString", "coordinates": [[39.1925, 21.4858], [32.3019, 30.0444]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_tehran_istanbul",
+        "source": "tehran",
+        "target": "istanbul",
+        "transportType": "road",
+        "capacity": 40,
+        "baseCost": 35,
+        "baseTransitTime": 3,
+        "fuelSensitivity": 0.8,
+        "policySensitivity": 0.8,
+        "riskTransmissionWeight": 0.75
+      },
+      "geometry": { "type": "LineString", "coordinates": [[51.3890, 35.6892], [28.9784, 41.0082]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_tehran_karachi",
+        "source": "tehran",
+        "target": "karachi",
+        "transportType": "road",
+        "capacity": 35,
+        "baseCost": 30,
+        "baseTransitTime": 3,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.7,
+        "riskTransmissionWeight": 0.7
+      },
+      "geometry": { "type": "LineString", "coordinates": [[51.3890, 35.6892], [67.0011, 24.8607]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_tehran_dubai",
+        "source": "tehran",
+        "target": "dubai",
+        "transportType": "air",
+        "capacity": 30,
+        "baseCost": 50,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.9,
+        "policySensitivity": 0.8,
+        "riskTransmissionWeight": 0.6
+      },
+      "geometry": { "type": "LineString", "coordinates": [[51.3890, 35.6892], [55.2708, 25.2048]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_hongkong_shanghai",
+        "source": "hongkong",
+        "target": "shanghai",
+        "transportType": "sea",
+        "capacity": 75,
+        "baseCost": 15,
+        "baseTransitTime": 2,
+        "fuelSensitivity": 0.4,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.5
+      },
+      "geometry": { "type": "LineString", "coordinates": [[114.1694, 22.3193], [121.4737, 31.2304]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_hongkong_singapore",
+        "source": "hongkong",
+        "target": "singapore",
+        "transportType": "sea",
+        "capacity": 70,
+        "baseCost": 30,
+        "baseTransitTime": 3,
+        "fuelSensitivity": 0.6,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.55
+      },
+      "geometry": { "type": "LineString", "coordinates": [[114.1694, 22.3193], [103.8198, 1.3521]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_losangeles_newyork",
+        "source": "losangeles",
+        "target": "newyork",
+        "transportType": "rail",
+        "capacity": 80,
+        "baseCost": 35,
+        "baseTransitTime": 4,
+        "fuelSensitivity": 0.4,
+        "policySensitivity": 0.1,
+        "riskTransmissionWeight": 0.3
+      },
+      "geometry": { "type": "LineString", "coordinates": [[-118.2437, 33.9425], [-95, 35], [-74.006, 40.7128]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_newyork_rotterdam",
+        "source": "newyork",
+        "target": "rotterdam",
+        "transportType": "sea",
+        "capacity": 85,
+        "baseCost": 55,
+        "baseTransitTime": 9,
+        "fuelSensitivity": 0.7,
+        "policySensitivity": 0.3,
+        "riskTransmissionWeight": 0.45
+      },
+      "geometry": { "type": "LineString", "coordinates": [[-74.006, 40.7128], [-30, 48], [4.4777, 51.9244]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_newyork_london",
+        "source": "newyork",
+        "target": "london",
+        "transportType": "air",
+        "capacity": 50,
+        "baseCost": 70,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.9,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.35
+      },
+      "geometry": { "type": "LineString", "coordinates": [[-74.006, 40.7128], [-0.1278, 51.5074]] }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "route_busan_tokyo",
+        "source": "busan",
+        "target": "tokyo",
+        "transportType": "sea",
+        "capacity": 65,
+        "baseCost": 15,
+        "baseTransitTime": 1,
+        "fuelSensitivity": 0.4,
+        "policySensitivity": 0.2,
+        "riskTransmissionWeight": 0.45
+      },
+      "geometry": { "type": "LineString", "coordinates": [[129.0756, 35.1796], [139.6917, 35.6895]] }
+    }
+  ]
+}
