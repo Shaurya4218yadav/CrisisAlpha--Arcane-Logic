@@ -50,7 +50,7 @@ export function createSimulation(config: Partial<SimulationConfig>, userId: stri
     createdAt: new Date().toISOString(),
     hypothesis: config.hypothesis || {
       title: `Crisis at ${config.originNodeId || 'unknown'}`,
-      description: config.hypothesis?.description || 'Simulated crisis scenario',
+      description: 'Simulated crisis scenario',
       category: 'conflict',
       affectedHubIds: [config.originNodeId || ''],
       affectedCountries: [],
