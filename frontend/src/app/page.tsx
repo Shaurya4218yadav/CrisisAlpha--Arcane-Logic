@@ -2,7 +2,7 @@
 
 // ============================================================
 // CrisisAlpha — Main Page
-// Full simulation interface layout
+// Crisis Command Center layout with 3D Globe
 // ============================================================
 
 import { useEffect, useState } from 'react';
@@ -10,15 +10,19 @@ import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
 import { api } from '@/lib/api/client';
+import { getMockGraphData, getMockPresets } from '@/lib/mock/simulationData';
 import ControlPanel from '@/components/controls/ControlPanel';
-import EventFeed from '@/components/events/EventFeed';
-import DecisionPanel from '@/components/decisions/DecisionPanel';
+import RightPanel from '@/components/panels/RightPanel';
 import SummaryBar from '@/components/summary/SummaryBar';
 import ResultsDashboard from '@/components/summary/ResultsDashboard';
+import ChatAssistant from '@/components/chat/ChatAssistant';
+import PreSimulationModal from '@/components/modal/PreSimulationModal';
+import EventToast from '@/components/globe/EventToast';
+import LayerToggle, { ViewLayer } from '@/components/globe/LayerToggle';
 
-// Dynamic import for MapLibre (no SSR)
-const SimulationMap = dynamic(
-  () => import('@/components/map/SimulationMap'),
+// Dynamic import for Three.js Globe (no SSR)
+const GlobeView = dynamic(
+  () => import('@/components/globe/GlobeView'),
   { ssr: false }
 );
 
@@ -26,6 +30,11 @@ export default function Home() {
   const { setGraph, setPresets, phase, nodes } = useScenarioStore();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeLayer, setActiveLayer] = useState<ViewLayer>('risk');
+
+  // Mobile drawer states
+  const [showMobileControls, setShowMobileControls] = useState(false);
+  const [showMobileData, setShowMobileData] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -37,10 +46,15 @@ export default function Home() {
         ]);
         setGraph(graphData.nodes, graphData.edges);
         setPresets(presetData.presets);
-        setLoading(false);
+        console.log('[INIT] Loaded data from backend');
       } catch (err) {
-        console.error('Failed to load initial data:', err);
-        setError('Failed to connect to CrisisAlpha backend. Make sure the server is running on port 3001.');
+        console.warn('[INIT] Backend unavailable, loading mock data:', err);
+        // Fallback to mock data — app remains fully functional
+        const mockGraph = getMockGraphData();
+        const mockPresets = getMockPresets();
+        setGraph(mockGraph.nodes, mockGraph.edges);
+        setPresets(mockPresets.presets);
+      } finally {
         setLoading(false);
       }
     }
@@ -51,12 +65,11 @@ export default function Home() {
     return <LoadingScreen />;
   }
 
-  if (error) {
-    return <ErrorScreen message={error} />;
-  }
-
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-950 bg-grid overflow-hidden">
+      {/* Pre-Simulation Modal */}
+      <PreSimulationModal />
+
       {/* Top Bar */}
       <header className="h-14 shrink-0 flex items-center justify-between px-4 border-b border-white/5 glass-panel z-10">
         <div className="flex items-center gap-3">
@@ -69,7 +82,7 @@ export default function Home() {
                 CrisisAlpha
               </h1>
               <p className="text-[9px] text-slate-500 uppercase tracking-widest">
-                Crisis Simulation Engine
+                Crisis Command Center
               </p>
             </div>
           </div>
@@ -80,40 +93,81 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
         {/* Left Panel — Controls */}
         <motion.aside
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="w-72 shrink-0 border-r border-white/5 glass-panel p-3 overflow-hidden"
+          className={`absolute lg:relative flex flex-col z-40 top-0 bottom-0 left-0 w-[85vw] max-w-sm lg:w-72 shrink-0 border-r border-white/5 glass-panel transition-transform duration-300 ${
+            showMobileControls ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+          }`}
         >
-          <ControlPanel />
+          <div className="flex justify-between items-center p-3 border-b border-white/5 lg:hidden shrink-0">
+             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Controls</h2>
+             <button onClick={() => setShowMobileControls(false)} className="text-slate-400 p-2 text-xl leading-none">×</button>
+          </div>
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar">
+            <ControlPanel />
+          </div>
         </motion.aside>
 
-        {/* Center — Map */}
-        <main className="flex-1 relative">
-          <SimulationMap />
+        {/* Background Overlay for mobile panels */}
+        {(showMobileControls || showMobileData) && (
+          <div 
+            className="absolute inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm transition-opacity" 
+            onClick={() => { setShowMobileControls(false); setShowMobileData(false); }}
+          />
+        )}
+
+        {/* Center — 3D Globe */}
+        <main className="flex-1 relative w-full h-full">
+          <GlobeView activeLayer={activeLayer} />
+          <LayerToggle active={activeLayer} onChange={setActiveLayer} />
+          <EventToast />
         </main>
 
-        {/* Right Panel — Events & Decisions */}
+        {/* Right Panel — Tabbed */}
         <motion.aside
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="w-80 shrink-0 border-l border-white/5 glass-panel flex flex-col"
+          className={`absolute lg:relative flex flex-col z-40 top-0 bottom-0 right-0 w-[85vw] max-w-sm lg:w-80 shrink-0 border-l border-white/5 glass-panel transition-transform duration-300 ${
+            showMobileData ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
+          }`}
         >
-          {/* Events */}
-          <div className="flex-1 p-3 border-b border-white/5 overflow-hidden">
-            <EventFeed />
+          <div className="flex justify-between items-center p-3 border-b border-white/5 lg:hidden shrink-0">
+             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Data Console</h2>
+             <button onClick={() => setShowMobileData(false)} className="text-slate-400 p-2 text-xl leading-none">×</button>
           </div>
-          {/* Decisions */}
-          <div className="flex-1 p-3 overflow-hidden">
-            <DecisionPanel />
+          <div className="flex-1 overflow-hidden relative">
+            <RightPanel />
           </div>
         </motion.aside>
+
+        {/* Mobile Navigation Bar */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 lg:hidden glass-panel px-4 py-2 rounded-2xl border border-white/10 shadow-xl shadow-black/50">
+           <button 
+             onClick={() => { setShowMobileControls(true); setShowMobileData(false); }}
+             className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 p-2 w-16"
+           >
+             <span className="text-2xl">🎛️</span>
+             <span className="text-[10px] uppercase font-bold tracking-wider">Controls</span>
+           </button>
+           <div className="w-px h-8 bg-white/10" />
+           <button 
+             onClick={() => { setShowMobileData(true); setShowMobileControls(false); }}
+             className="flex flex-col items-center gap-1 text-violet-400 hover:text-violet-300 p-2 w-16"
+           >
+             <span className="text-2xl">📊</span>
+             <span className="text-[10px] uppercase font-bold tracking-wider">Data</span>
+           </button>
+        </div>
       </div>
 
       {/* Results Overlay */}
       <ResultsDashboard />
+
+      {/* Chat Assistant */}
+      <ChatAssistant />
     </div>
   );
 }
@@ -134,7 +188,7 @@ function LoadingScreen() {
           Cα
         </motion.div>
         <h2 className="text-xl font-bold text-white mb-2">CrisisAlpha</h2>
-        <p className="text-sm text-slate-500">Initializing simulation engine...</p>
+        <p className="text-sm text-slate-500">Initializing command center...</p>
         <div className="mt-4 w-48 h-1 bg-white/10 rounded-full overflow-hidden mx-auto">
           <motion.div
             initial={{ x: '-100%' }}

@@ -15,6 +15,18 @@ export interface ScenarioConfig {
   policyRestriction: number;
   durationDays: number;
   userGoal: UserGoal;
+  // Advanced parameters
+  riskSensitivity: number;
+  propagationSpeed: number;
+  demandVolatility: number;
+}
+
+export interface UserProfile {
+  name: string;
+  businessType: string;
+  industry: string;
+  regions: string[];
+  product: string;
 }
 
 export interface GraphNode {
