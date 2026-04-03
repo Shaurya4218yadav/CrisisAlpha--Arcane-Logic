@@ -8,6 +8,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
+import { api } from '@/lib/api/client';
 
 interface ChatMessage {
   id: string;
@@ -16,7 +17,7 @@ interface ChatMessage {
   timestamp: number;
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+// Uses api.chat() from shared client
 
 // Build simulation context for the LLM
 function buildContext(state: ReturnType<typeof useScenarioStore.getState>): string {
@@ -94,19 +95,8 @@ export default function ChatAssistant() {
 
     try {
       // Try backend chat endpoint first
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: userMessage,
-          context,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        return data.response || data.message;
-      }
+      const data = await api.chat(userMessage, context);
+      if (data.response) return data.response;
     } catch {
       // Backend unavailable — use smart fallback
     }

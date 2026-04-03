@@ -1,73 +1,116 @@
 // ============================================================
-// CrisisAlpha — Score Service
-// Computes partial and final outcome metrics
+// CrisisAlpha — Score Service (v2)
+// Per-simulation & per-attachment-point scoring
 // ============================================================
 
-import { GraphState } from '../models/graph';
-import { ScenarioConfig, ScoreSnapshot, Decision } from '../models/scenario';
-import { getNodesArray, getEdgesArray } from './graphService';
+import type { GraphState } from '../models/graph';
+import type { SimulationConfig, ScoreSnapshot, Decision } from '../models/simulation';
+import type { UserProfile } from '../models/user';
+import { getProfile } from './userContextService';
 
-export function computeScore(
+// ── Calculate Score Snapshot ────────────────────────────────
+
+export function calculateScore(
   graph: GraphState,
-  config: ScenarioConfig,
+  config: SimulationConfig,
   decisions: Decision[],
-  tick: number,
-  maxTicks: number
+  tick: number
 ): ScoreSnapshot {
-  const nodes = getNodesArray(graph);
-  const edges = getEdgesArray(graph);
+  const nodes = Array.from(graph.nodes.values());
+  const edges = Array.from(graph.edges.values());
+  const chokepoints = Array.from(graph.chokepoints.values());
 
-  // Risk Avoided (100 - average risk %)
-  const avgRisk = nodes.reduce((sum, n) => sum + n.riskScore, 0) / nodes.length;
-  const riskAvoided = Math.round((1 - avgRisk) * 100);
+  // Risk metrics
+  const avgNodeRisk = nodes.reduce((sum, n) => sum + n.currentRiskScore, 0) / nodes.length;
+  const riskAvoided = Math.round((1 - avgNodeRisk) * 100);
 
-  // Route Failures
-  const routeFailures = edges.filter(e => e.status === 'broken').length;
+  // Network efficiency
+  const avgCapacity = edges.reduce((sum, e) => sum + e.currentCapacityPct, 0) / edges.length;
+  const networkEfficiency = Math.round(avgCapacity * 100);
 
-  // Network Efficiency
-  const totalCapacity = edges.reduce((sum, e) => sum + e.capacity, 0);
-  const operationalCapacity = edges
-    .filter(e => e.status !== 'broken')
-    .reduce((sum, e) => sum + e.capacity * (1 - e.riskScore), 0);
-  const networkEfficiency = Math.round((operationalCapacity / totalCapacity) * 100);
+  // Route failures
+  const routeFailures = edges.filter(e => e.currentStatus === 'broken').length;
 
-  // Demand Served (based on safe and stressed nodes)
+  // Chokepoints affected
+  const chokePointsAffected = chokepoints.filter(c => c.currentRiskScore > 0.3).length;
+
+  // Demand served (how much demand can still be met given capacity)
   const totalDemand = nodes.reduce((sum, n) => sum + n.baseDemand, 0);
-  const servedDemand = nodes
-    .filter(n => n.status !== 'broken')
-    .reduce((sum, n) => sum + n.baseDemand * (1 - n.riskScore * 0.5), 0);
-  const demandServed = Math.round((servedDemand / totalDemand) * 100);
+  const servableDemand = nodes.reduce((sum, n) => {
+    const capacityFactor = 1 - n.currentRiskScore * 0.8;
+    return sum + n.baseDemand * capacityFactor;
+  }, 0);
+  const demandServed = Math.round((servableDemand / totalDemand) * 100);
 
-  // Profit Gained (from decisions + safe zones with high demand)
-  const profitFromDecisions = decisions
-    .filter(d => d.type === 'pricing')
-    .length * 8;
-  const safeHighDemandProfit = nodes
-    .filter(n => n.status === 'safe' && n.baseDemand > 60)
-    .reduce((sum, n) => sum + (n.baseDemand / 100) * 5, 0);
-  const profitGained = Math.round(profitFromDecisions + safeHighDemandProfit);
+  // Profit gained (decisions that created profit opportunities)
+  const profitDecisions = decisions.filter(d => d.type === 'pricing' || d.type === 'hedge').length;
+  const profitGained = Math.min(100, profitDecisions * 15 + Math.max(0, (networkEfficiency - 60)));
 
-  // Overall score
+  // Days until major impact
+  const criticalNodes = nodes.filter(n => n.currentRiskScore > 0.6);
+  let projectedImpactDays = config.durationDays;
+  if (criticalNodes.length > 0) {
+    const avgBufferDays = criticalNodes.reduce((sum, n) => sum + n.inventoryBufferDays, 0) / criticalNodes.length;
+    projectedImpactDays = Math.max(1, Math.round(avgBufferDays * (1 - avgNodeRisk)));
+  }
+
+  // Overall composite score
   const overallScore = Math.round(
-    0.40 * riskAvoided +
-    0.35 * profitGained +
-    0.25 * networkEfficiency
+    riskAvoided * 0.3 +
+    profitGained * 0.2 +
+    networkEfficiency * 0.25 +
+    demandServed * 0.25
   );
 
   return {
     riskAvoided,
-    profitGained: Math.min(profitGained, 100),
+    profitGained,
     networkEfficiency,
     demandServed,
     routeFailures,
-    overallScore: Math.min(overallScore, 100),
+    chokePointsAffected,
+    overallScore,
+    projectedImpactDays,
   };
 }
 
-export function getFinalLabel(score: ScoreSnapshot, config: ScenarioConfig): string {
-  if (score.overallScore >= 80) return 'Crisis Commander';
-  if (score.overallScore >= 60) return 'Balanced Strategist';
-  if (score.riskAvoided > score.profitGained) return 'Operationally Resilient';
-  if (score.profitGained > score.riskAvoided) return 'Profit Maximizer';
-  return 'Reactive Manager';
+// ── Per-Attachment-Point Scores ─────────────────────────────
+
+export interface AttachmentScore {
+  attachmentId: string;
+  hubId: string;
+  hubName: string;
+  riskLevel: number;
+  bufferDaysRemaining: number;
+  impactSeverity: string;
+}
+
+export function calculateAttachmentScores(
+  graph: GraphState,
+  userId: string
+): AttachmentScore[] {
+  const profile = getProfile(userId);
+  if (!profile) return [];
+
+  return profile.attachmentPoints.map(ap => {
+    const hub = graph.nodes.get(ap.hubId);
+    const riskLevel = hub?.currentRiskScore || 0;
+    const bufferDays = hub?.inventoryBufferDays || 0;
+    const adjustedBuffer = Math.max(0, Math.round(bufferDays * (1 - riskLevel)));
+
+    let impactSeverity: string;
+    if (riskLevel >= 0.8) impactSeverity = 'critical';
+    else if (riskLevel >= 0.6) impactSeverity = 'high';
+    else if (riskLevel >= 0.3) impactSeverity = 'moderate';
+    else impactSeverity = 'low';
+
+    return {
+      attachmentId: ap.id,
+      hubId: ap.hubId,
+      hubName: hub?.name || ap.hubId,
+      riskLevel: Math.round(riskLevel * 100) / 100,
+      bufferDaysRemaining: adjustedBuffer,
+      impactSeverity,
+    };
+  });
 }

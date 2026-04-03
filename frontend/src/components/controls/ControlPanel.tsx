@@ -52,7 +52,7 @@ export default function ControlPanel() {
       // Try backend first
       const result = await api.createScenario(config);
       setScenarioId(result.session.id);
-      if (result.nodes) setGraph(result.nodes, result.edges);
+      if (result.nodes && result.edges) setGraph(result.nodes, result.edges);
 
       // Connect WebSocket
       connectSocket(
@@ -86,13 +86,21 @@ export default function ControlPanel() {
 
   const handlePause = async () => {
     if (!scenarioId) return;
-    await api.pauseScenario(scenarioId);
+    try {
+      await api.pauseScenario(scenarioId);
+    } catch {
+      console.warn('[SIM] Pause failed — mock mode');
+    }
     setPhase('paused');
   };
 
   const handleResume = async () => {
     if (!scenarioId) return;
-    await api.resumeScenario(scenarioId);
+    try {
+      await api.resumeScenario(scenarioId);
+    } catch {
+      console.warn('[SIM] Resume failed — mock mode');
+    }
     setPhase('running');
   };
 
