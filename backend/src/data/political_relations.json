@@ -1,0 +1,50 @@
+{
+  "relations": [
+    { "countryA": "US", "countryB": "CN", "relationType": "rival", "diplomaticScore": -0.3, "tradeAgreement": null, "activeSanctions": true, "sanctionDetails": { "goodsAffected": ["semiconductors", "AI_chips", "rare_earth"], "severity": "partial", "since": "2022-10-07" } },
+    { "countryA": "US", "countryB": "JP", "relationType": "ally", "diplomaticScore": 0.85, "tradeAgreement": "US-Japan Trade Agreement", "activeSanctions": false },
+    { "countryA": "US", "countryB": "KR", "relationType": "ally", "diplomaticScore": 0.8, "tradeAgreement": "KORUS FTA", "activeSanctions": false },
+    { "countryA": "US", "countryB": "GB", "relationType": "ally", "diplomaticScore": 0.9, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "US", "countryB": "DE", "relationType": "ally", "diplomaticScore": 0.75, "tradeAgreement": "EU Trade", "activeSanctions": false },
+    { "countryA": "US", "countryB": "IN", "relationType": "ally", "diplomaticScore": 0.6, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "US", "countryB": "SA", "relationType": "ally", "diplomaticScore": 0.5, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "US", "countryB": "IR", "relationType": "hostile", "diplomaticScore": -0.8, "tradeAgreement": null, "activeSanctions": true, "sanctionDetails": { "goodsAffected": ["oil", "financial_services", "military"], "severity": "full", "since": "2018-05-08" } },
+    { "countryA": "US", "countryB": "TW", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "US", "countryB": "AU", "relationType": "ally", "diplomaticScore": 0.9, "tradeAgreement": "AUSFTA", "activeSanctions": false },
+    { "countryA": "US", "countryB": "CA", "relationType": "ally", "diplomaticScore": 0.9, "tradeAgreement": "USMCA", "activeSanctions": false },
+
+    { "countryA": "CN", "countryB": "JP", "relationType": "rival", "diplomaticScore": -0.2, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "CN", "countryB": "KR", "relationType": "neutral", "diplomaticScore": 0.1, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "CN", "countryB": "TW", "relationType": "hostile", "diplomaticScore": -0.7, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "CN", "countryB": "IN", "relationType": "rival", "diplomaticScore": -0.3, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "CN", "countryB": "SG", "relationType": "neutral", "diplomaticScore": 0.3, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "CN", "countryB": "AU", "relationType": "rival", "diplomaticScore": -0.2, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "CN", "countryB": "IR", "relationType": "ally", "diplomaticScore": 0.5, "tradeAgreement": "25-Year Cooperation Agreement", "activeSanctions": false },
+    { "countryA": "CN", "countryB": "SA", "relationType": "neutral", "diplomaticScore": 0.4, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "CN", "countryB": "PK", "relationType": "ally", "diplomaticScore": 0.8, "tradeAgreement": "CPEC", "activeSanctions": false },
+
+    { "countryA": "IN", "countryB": "PK", "relationType": "hostile", "diplomaticScore": -0.6, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "IN", "countryB": "JP", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": "India-Japan CEPA", "activeSanctions": false },
+    { "countryA": "IN", "countryB": "AE", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": "India-UAE CEPA", "activeSanctions": false },
+    { "countryA": "IN", "countryB": "SG", "relationType": "ally", "diplomaticScore": 0.6, "tradeAgreement": "India-Singapore CECA", "activeSanctions": false },
+    { "countryA": "IN", "countryB": "LK", "relationType": "ally", "diplomaticScore": 0.5, "tradeAgreement": "India-Sri Lanka FTA", "activeSanctions": false },
+
+    { "countryA": "SA", "countryB": "IR", "relationType": "hostile", "diplomaticScore": -0.5, "tradeAgreement": null, "activeSanctions": false },
+    { "countryA": "SA", "countryB": "AE", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": "GCC", "activeSanctions": false },
+    { "countryA": "SA", "countryB": "QA", "relationType": "neutral", "diplomaticScore": 0.2, "tradeAgreement": "GCC", "activeSanctions": false },
+
+    { "countryA": "DE", "countryB": "NL", "relationType": "ally", "diplomaticScore": 0.9, "tradeAgreement": "EU Single Market", "activeSanctions": false },
+    { "countryA": "DE", "countryB": "FR", "relationType": "ally", "diplomaticScore": 0.85, "tradeAgreement": "EU Single Market", "activeSanctions": false },
+    { "countryA": "DE", "countryB": "IT", "relationType": "ally", "diplomaticScore": 0.75, "tradeAgreement": "EU Single Market", "activeSanctions": false },
+    { "countryA": "GB", "countryB": "NL", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": "UK-EU TCA", "activeSanctions": false },
+    { "countryA": "TR", "countryB": "GR", "relationType": "rival", "diplomaticScore": -0.2, "tradeAgreement": null, "activeSanctions": false },
+
+    { "countryA": "JP", "countryB": "KR", "relationType": "neutral", "diplomaticScore": 0.2, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "JP", "countryB": "TW", "relationType": "ally", "diplomaticScore": 0.6, "tradeAgreement": null, "activeSanctions": false },
+
+    { "countryA": "AU", "countryB": "NZ", "relationType": "ally", "diplomaticScore": 0.95, "tradeAgreement": "CER", "activeSanctions": false },
+    { "countryA": "AU", "countryB": "SG", "relationType": "ally", "diplomaticScore": 0.7, "tradeAgreement": "RCEP", "activeSanctions": false },
+    { "countryA": "AU", "countryB": "JP", "relationType": "ally", "diplomaticScore": 0.8, "tradeAgreement": "RCEP", "activeSanctions": false },
+
+    { "countryA": "BR", "countryB": "AR", "relationType": "ally", "diplomaticScore": 0.6, "tradeAgreement": "MERCOSUR", "activeSanctions": false }
+  ]
+}

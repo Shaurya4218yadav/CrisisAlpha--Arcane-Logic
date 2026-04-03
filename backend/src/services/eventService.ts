@@ -1,171 +1,172 @@
 // ============================================================
-// CrisisAlpha — Event Service
-// Watches graph state and emits threshold-based events
+// CrisisAlpha — Event Detection Service (v2)
+// Expanded threshold-based event detection
 // ============================================================
 
-import { GraphState } from '../models/graph';
-import { SimulationEvent, EVENT_TEMPLATES } from '../models/event';
-import { ScenarioConfig } from '../models/scenario';
 import { v4 as uuid } from 'uuid';
+import type { GraphState } from '../models/graph';
+import type { SimulationEvent } from '../models/event';
+import { EVENT_TEMPLATES } from '../models/event';
 
 // Track which events have been emitted to avoid duplicates
-const emittedEvents = new Map<string, Set<string>>(); // scenarioId -> Set of event keys
+const emittedEvents = new Map<string, Set<string>>();
 
-export function initEventTracker(scenarioId: string): void {
-  emittedEvents.set(scenarioId, new Set());
+function getTracker(simulationId: string): Set<string> {
+  if (!emittedEvents.has(simulationId)) {
+    emittedEvents.set(simulationId, new Set());
+  }
+  return emittedEvents.get(simulationId)!;
 }
 
-export function clearEventTracker(scenarioId: string): void {
-  emittedEvents.delete(scenarioId);
+export function clearTracker(simulationId: string): void {
+  emittedEvents.delete(simulationId);
 }
+
+// ── Main Detection ──────────────────────────────────────────
 
 export function detectEvents(
   graph: GraphState,
-  config: ScenarioConfig,
-  tick: number,
-  scenarioId: string
+  simulationId: string,
+  tick: number
 ): SimulationEvent[] {
   const events: SimulationEvent[] = [];
-  const emitted = emittedEvents.get(scenarioId) || new Set();
+  const tracker = getTracker(simulationId);
 
-  for (const [nodeId, node] of graph.nodes) {
+  // Node-based events
+  for (const [, node] of graph.nodes) {
     // Port shutdown
-    if (node.type === 'port' && node.riskScore >= 0.75) {
-      const key = `port_shutdown_${nodeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        events.push(createEvent('port_shutdown', tick, node.name, [nodeId]));
+    if (node.currentRiskScore >= 0.8 && (node.type === 'port' || node.type === 'hub')) {
+      const key = `port_shutdown_${node.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.port_shutdown;
+        events.push(createEvent(tick, 'port_shutdown', template.severity, template.title, template.messageFn(node.name), template.category, [node.id]));
       }
     }
-
     // Hub critical
-    if (node.type === 'hub' && node.riskScore >= 0.8) {
-      const key = `hub_critical_${nodeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        events.push(createEvent('hub_critical', tick, node.name, [nodeId]));
+    else if (node.currentRiskScore >= 0.6 && node.currentRiskScore < 0.8) {
+      const key = `hub_critical_${node.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.hub_critical;
+        events.push(createEvent(tick, 'hub_critical', template.severity, template.title, template.messageFn(node.name), template.category, [node.id]));
+      }
+    }
+    // Node stressed
+    else if (node.currentRiskScore >= 0.3 && node.currentRiskScore < 0.6) {
+      const key = `node_stressed_${node.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.node_stressed;
+        events.push(createEvent(tick, 'node_stressed', template.severity, template.title, template.messageFn(node.name), template.category, [node.id]));
       }
     }
 
-    // Node stressed (first time crossing 0.3)
-    if (node.riskScore >= 0.3 && node.riskScore < 0.6) {
-      const key = `node_stressed_${nodeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        events.push(createEvent('node_stressed', tick, node.name, [nodeId]));
-      }
-    }
-
-    // Demand spike in safe zone
-    if (node.riskScore < 0.2 && node.baseDemand > 70) {
-      // Check if neighbors are under stress
-      const edgeIds = graph.adjacency.get(nodeId) || [];
-      let hasStressedNeighbor = false;
-      for (const edgeId of edgeIds) {
+    // Demand spike in safe zones (profit opportunity)
+    if (node.currentRiskScore < 0.1 && node.baseDemand > 70) {
+      // Check if neighbors are disrupted
+      const adjEdges = graph.adjacency.get(node.id) || [];
+      let disruptedNeighbors = 0;
+      for (const edgeId of adjEdges) {
         const edge = graph.edges.get(edgeId);
-        if (!edge) continue;
-        const neighborId = edge.sourceNodeId === nodeId ? edge.targetNodeId : edge.sourceNodeId;
-        const neighbor = graph.nodes.get(neighborId);
-        if (neighbor && neighbor.riskScore >= 0.5) {
-          hasStressedNeighbor = true;
-          break;
-        }
+        if (edge && edge.currentRiskScore > 0.5) disruptedNeighbors++;
       }
-      if (hasStressedNeighbor) {
-        const key = `demand_spike_${nodeId}`;
-        if (!emitted.has(key)) {
-          emitted.add(key);
-          events.push(createEvent('demand_spike_safe_zone', tick, node.name, [nodeId]));
+      if (disruptedNeighbors >= 2) {
+        const key = `demand_spike_${node.id}_${tick}`;
+        if (!tracker.has(key)) {
+          tracker.add(key);
+          const template = EVENT_TEMPLATES.demand_spike_safe_zone;
+          events.push(createEvent(tick, 'demand_spike', template.severity, template.title, template.messageFn(node.name), template.category, [node.id]));
         }
       }
     }
   }
 
   // Edge-based events
-  for (const [edgeId, edge] of graph.edges) {
-    // Route broken
-    if (edge.riskScore >= 0.8) {
-      const key = `route_broken_${edgeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        const sourceNode = graph.nodes.get(edge.sourceNodeId);
-        const targetNode = graph.nodes.get(edge.targetNodeId);
-        const routeName = `${sourceNode?.name || edge.sourceNodeId} → ${targetNode?.name || edge.targetNodeId}`;
-        events.push(createEvent('route_broken', tick, routeName, [], [edgeId]));
+  for (const [, edge] of graph.edges) {
+    if (edge.currentRiskScore >= 0.8) {
+      const key = `route_broken_${edge.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.route_broken;
+        const routeName = `${edge.sourceHubId} → ${edge.targetHubId}`;
+        events.push(createEvent(tick, 'route_broken', template.severity, template.title, template.messageFn(routeName), template.category, [], [edge.id]));
       }
     }
 
-    // Fuel shortage worsening on fuel-sensitive routes
-    if (edge.fuelSensitivity > 0.6 && edge.riskScore >= 0.5) {
-      const key = `fuel_shortage_${edgeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        const sourceNode = graph.nodes.get(edge.sourceNodeId);
-        events.push(createEvent('fuel_shortage_worsening', tick, sourceNode?.name || edge.sourceNodeId, [], [edgeId]));
-      }
-    }
-
-    // Policy restriction escalation
-    if (edge.policySensitivity > 0.5 && edge.riskScore >= 0.6) {
-      const key = `policy_restriction_${edgeId}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        const sourceNode = graph.nodes.get(edge.sourceNodeId);
-        events.push(createEvent('policy_restriction_escalation', tick, sourceNode?.name || edge.sourceNodeId, [], [edgeId]));
+    // Route restored
+    if (edge.currentRiskScore < 0.3 && tracker.has(`route_broken_${edge.id}`)) {
+      const key = `route_restored_${edge.id}_${tick}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.route_restored;
+        const routeName = `${edge.sourceHubId} → ${edge.targetHubId}`;
+        events.push(createEvent(tick, 'route_restored', template.severity, template.title, template.messageFn(routeName), template.category, [], [edge.id]));
       }
     }
   }
 
-  // Cascade spreading event (check at certain ticks)
-  if (tick % 3 === 0 && tick > 1) {
-    const stressedNodes = Array.from(graph.nodes.values()).filter(n => n.riskScore >= 0.3);
-    const originNode = graph.nodes.get(config.originNodeId);
-    if (stressedNodes.length >= 3) {
-      const key = `cascade_spreading_tick_${tick}`;
-      if (!emitted.has(key)) {
-        emitted.add(key);
-        events.push(createEvent(
-          'cascade_spreading',
-          tick,
-          originNode?.name || config.originNodeId,
-          stressedNodes.map(n => n.id)
-        ));
+  // Chokepoint events
+  for (const [, cp] of graph.chokepoints) {
+    if (cp.currentRiskScore >= 0.7) {
+      const key = `chokepoint_blocked_${cp.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.chokepoint_blocked;
+        events.push(createEvent(tick, 'chokepoint_blocked', template.severity, template.title, template.messageFn(cp.name), template.category, [], [], [cp.id]));
+      }
+    } else if (cp.currentRiskScore >= 0.4 && cp.currentRiskScore < 0.7) {
+      const key = `chokepoint_threatened_${cp.id}`;
+      if (!tracker.has(key)) {
+        tracker.add(key);
+        const template = EVENT_TEMPLATES.chokepoint_threatened;
+        events.push(createEvent(tick, 'chokepoint_threatened', template.severity, template.title, template.messageFn(cp.name), template.category, [], [], [cp.id]));
       }
     }
+  }
+
+  // Cascade events
+  const totalNodes = graph.nodes.size;
+  const disruptedNodes = Array.from(graph.nodes.values()).filter(n => n.currentRiskScore > 0.5).length;
+  const disruptedPct = disruptedNodes / totalNodes;
+
+  if (disruptedPct >= 0.3 && !tracker.has(`cascade_critical_${tick}`)) {
+    tracker.add(`cascade_critical_${tick}`);
+    const template = EVENT_TEMPLATES.cascade_critical_mass;
+    events.push(createEvent(tick, 'cascade_critical', template.severity, template.title, template.messageFn('global'), template.category));
+  } else if (disruptedPct >= 0.15 && disruptedPct < 0.3 && !tracker.has(`cascade_spreading_${tick}`)) {
+    tracker.add(`cascade_spreading_${tick}`);
+    const template = EVENT_TEMPLATES.cascade_spreading;
+    events.push(createEvent(tick, 'cascade_spreading', template.severity, template.title, template.messageFn('affected'), template.category));
   }
 
   return events;
 }
 
-function createEvent(
-  type: string,
-  tick: number,
-  contextName: string,
-  relatedNodeIds: string[] = [],
-  relatedEdgeIds: string[] = []
-): SimulationEvent {
-  const template = EVENT_TEMPLATES[type];
-  if (!template) {
-    return {
-      id: `evt_${uuid().slice(0, 8)}`,
-      tick,
-      type,
-      severity: 'low',
-      title: type,
-      message: `Event at ${contextName}`,
-      relatedNodeIds,
-      relatedEdgeIds,
-    };
-  }
+// ── Helper ──────────────────────────────────────────────────
 
+function createEvent(
+  tick: number,
+  type: string,
+  severity: SimulationEvent['severity'],
+  title: string,
+  message: string,
+  category?: string,
+  relatedNodeIds?: string[],
+  relatedEdgeIds?: string[],
+  relatedChokepointIds?: string[]
+): SimulationEvent {
   return {
-    id: `evt_${uuid().slice(0, 8)}`,
+    id: `sevt_${uuid().slice(0, 8)}`,
     tick,
     type,
-    severity: template.severity,
-    title: template.title,
-    message: template.messageFn(contextName),
+    severity,
+    title,
+    message,
+    category: category as any,
     relatedNodeIds,
     relatedEdgeIds,
+    relatedChokepointIds,
+    timestamp: new Date().toISOString(),
   };
 }

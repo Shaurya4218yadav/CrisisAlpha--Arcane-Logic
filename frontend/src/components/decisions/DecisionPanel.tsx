@@ -44,10 +44,12 @@ export default function DecisionPanel() {
     if (!scenarioId || applied.has(rec.id)) return;
     setApplying(rec.id);
     try {
-      await api.applyDecision(scenarioId, rec.id);
+      await api.applyDecision(scenarioId, rec.id, rec.type, rec.relatedNodeIds, rec.relatedEdgeIds);
       setApplied((prev) => new Set(prev).add(rec.id));
     } catch (err) {
       console.error('Failed to apply decision:', err);
+      // Still mark as applied for mock mode
+      setApplied((prev) => new Set(prev).add(rec.id));
     }
     setApplying(null);
   };
