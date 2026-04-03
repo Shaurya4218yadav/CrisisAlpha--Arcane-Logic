@@ -1,6 +1,8 @@
-CrisisAlpha
+CrisisAlpha 
 
-Interactive Crisis Simulation Engine for Risk, Resilience & Opportunity
+**Interactive Crisis Simulation Engine for Risk, Resilience & Opportunity**
+
+---
 
 Overview
 
@@ -8,94 +10,133 @@ CrisisAlpha is a simulation-driven platform inspired by interactive systems like
 
 Users interact directly with a world map to trigger and observe cascading disruptions, enabling smarter decision-making under uncertainty.
 
+---
+
 Key Features
 
-Interactive Map-Based Simulation
+ Interactive Map-Based Simulation
 
-Select any region and trigger crisis scenarios
-Visualize disruption spread across a dynamic network
-Real-Time Crisis Evolution
+* Select any region and trigger crisis scenarios
+* Visualize disruption spread across a dynamic network
 
-Watch disruptions propagate across cities and routes
-Time-based simulation (Day 1 → Day 7 → Day 30)
-Risk Propagation Engine
+ Real-Time Crisis Evolution
 
-Graph-based system inspired by GNN message passing
-Models cascading failures across connected nodes
-Failure Detection
+* Watch disruptions propagate across cities and routes
+* Time-based simulation (Day 1 → Day 7 → Day 30)
 
-Identify:
+ Risk Propagation Engine
 
-Broken routes
-High-risk zones
-Supply bottlenecks
-Decision Engine
-Suggest:
+* Graph-based system inspired by GNN message passing
+* Models cascading failures across connected nodes
 
-Alternative routes
-Safer logistics hubs
-Inventory redistribution
-Profit Intelligence
-Detect demand spikes in safe zones
-Recommend dynamic pricing strategies
-Highlight arbitrage opportunities
-Live Event System
-Dynamic alerts:
+ Failure Detection
 
-Port shutdowns
-Fuel shortages
-Demand surges
-Simulation Feedback
-Final scoring:
+* Identify:
 
-Risk avoided
-Profit gained
-Network efficiency
-Architecture
-Frontend
+  * Broken routes
+  * High-risk zones
+  * Supply bottlenecks
 
-React
-Mapbox / Leaflet
-Backend
+# Decision Engine
 
-FastAPI (Python)
-Core Engine
+* Suggest:
 
-Graph-based simulation
-Risk propagation
-Pathfinding algorithms
-AI Layer
+  * Alternative routes
+  * Safer logistics hubs
+  * Inventory redistribution
 
-LLM-based explanation system
-Optional NLP for event signals
-How It Works
-Select location and industry
+# Profit Intelligence
 
-Configure crisis parameters
+* Detect demand spikes in safe zones
+* Recommend dynamic pricing strategies
+* Highlight arbitrage opportunities
 
-Run simulation
+# Live Event System
 
-Observe:
+* Dynamic alerts:
 
-Spread of disruption
-Failure points
-Recommended actions
-Design Choice: Why Not a Full GNN?
-We use a deterministic graph-based propagation model inspired by GNNs instead of training a full neural network.
+  * Port shutdowns
+  * Fuel shortages
+  * Demand surges
+
+# Simulation Feedback
+
+* Final scoring:
+
+  * Risk avoided
+  * Profit gained
+  * Network efficiency
+
+---
+
+# Architecture
+
+**Frontend**
+
+* React
+* Mapbox / Leaflet
+
+**Backend**
+
+* FastAPI (Python)
+
+**Core Engine**
+
+* Graph-based simulation
+* Risk propagation
+* Pathfinding algorithms
+
+**AI Layer**
+
+* LLM-based explanation system
+* Optional NLP for event signals
+
+---
+
+# How It Works
+
+1. Select location and industry
+2. Configure crisis parameters
+3. Run simulation
+4. Observe:
+
+   * Spread of disruption
+   * Failure points
+   * Recommended actions
+
+---
+
+# Design Choice: Why Not a Full GNN?
+
+We use a **deterministic graph-based propagation model inspired by GNNs** instead of training a full neural network.
 
 This ensures:
 
-Real-time performance
-Interpretability
-No dependency on large datasets
-Stability during live simulations
-Use Cases
-Supply chain risk analysis
-Crisis preparedness
-Logistics optimization
-Scenario-based decision training
-Team
-Arcane Logic
+* Real-time performance
+* Interpretability
+* No dependency on large datasets
+* Stability during live simulations
 
-Vision
+---
+
+# Use Cases
+
+* Supply chain risk analysis
+* Crisis preparedness
+* Logistics optimization
+* Scenario-based decision training
+
+---
+
+# Team
+
+**Arcane Logic**
+
+---
+
+# Vision
+
 To transform crisis response from reactive analysis into interactive, simulation-driven decision intelligence.
+
+---
+ 
