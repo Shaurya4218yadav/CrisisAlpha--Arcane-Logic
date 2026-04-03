@@ -17,6 +17,7 @@ import {
   getScenarioSummary,
 } from '../services/simulationService';
 import { loadGraph, serializeNodes, serializeEdges } from '../services/graphService';
+import { generateSitRep } from '../services/aiService';
 
 const router = Router();
 
@@ -169,6 +170,16 @@ router.get('/scenario/:id/summary', (req: Request, res: Response) => {
     res.json(summary);
   } else {
     res.status(404).json({ error: 'Scenario not found' });
+  }
+});
+
+// GET /api/scenario/:id/ai-summary
+router.get('/scenario/:id/ai-summary', async (req: Request, res: Response) => {
+  try {
+    const report = await generateSitRep(req.params.id);
+    res.json({ report });
+  } catch (err: any) {
+    res.status(404).json({ error: err.message || 'Failed to generate report' });
   }
 });
 
