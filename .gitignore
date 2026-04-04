@@ -49,3 +49,17 @@ Thumbs.db
 backend/dist
 frontend/.next
 frontend/out
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+env/
+venv/
+ENV/
+*.egg-info/
+.installed.cfg
+*.egg
