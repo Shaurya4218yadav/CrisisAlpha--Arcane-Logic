@@ -20,7 +20,7 @@ export default function SummaryBar() {
     {
       label: 'Day',
       value: phase === 'setup' ? '—' : `${currentTick}/${maxTicks}`,
-      color: '#38bdf8',
+      color: '#00F5D4',
       icon: '📅',
     },
     {
@@ -38,7 +38,7 @@ export default function SummaryBar() {
     {
       label: 'Profit',
       value: `${score.profitGained}`,
-      color: '#38bdf8',
+      color: '#00F5D4',
       icon: '💰',
     },
     {
@@ -56,7 +56,7 @@ export default function SummaryBar() {
     {
       label: 'Events',
       value: `${events.length}`,
-      color: '#a78bfa',
+      color: '#00F5D4',
       icon: '⚡',
     },
     {

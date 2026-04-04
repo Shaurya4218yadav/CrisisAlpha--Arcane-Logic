@@ -48,7 +48,7 @@ export default function ChatAssistant() {
       id: 'welcome',
       role: 'assistant',
       content:
-        "Welcome to CrisisAlpha Command. I'm your AI crisis advisor. Ask me about the current situation, recommended actions, or risk analysis.",
+        'I can help analyze risks and routes.',
       timestamp: 0,
     },
   ]);
@@ -188,13 +188,13 @@ export default function ChatAssistant() {
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-[90px] right-4 lg:bottom-6 lg:right-6 z-[60] w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all ${
+        className={`fixed bottom-[90px] left-4 lg:bottom-6 lg:left-6 z-[60] w-10 h-10 rounded-full flex items-center justify-center transition-all ${
           isOpen
-            ? 'bg-slate-700 text-slate-300'
-            : 'bg-gradient-to-br from-cyan-500 to-blue-600 text-white shadow-cyan-500/30'
+            ? 'bg-bg/80 text-slate-300 border border-white/10'
+            : 'bg-primary/10 backdrop-blur-md text-primary border border-primary/30 shadow-[0_0_15px_rgba(0,245,212,0.1)]'
         }`}
       >
-        {isOpen ? '✕' : '💬'}
+        {isOpen ? <span className="text-xs">✕</span> : <span className="text-sm">💬</span>}
       </motion.button>
 
       {/* Chat Window */}
@@ -205,12 +205,12 @@ export default function ChatAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', duration: 0.3 }}
-            className="fixed bottom-[150px] right-4 lg:bottom-20 lg:right-6 z-[60] w-[calc(100vw-2rem)] sm:w-80 h-[50vh] max-h-[420px] min-h-[300px] bg-slate-900/95 backdrop-blur-xl border border-white/10 rounded-2xl flex flex-col overflow-hidden shadow-2xl"
+            className="fixed bottom-[150px] left-4 lg:bottom-24 lg:left-6 z-[60] w-[calc(100vw-2rem)] sm:w-80 h-[50vh] max-h-[420px] min-h-[300px] bg-bg/90 backdrop-blur-2xl border border-primary/20 rounded-[24px] flex flex-col overflow-hidden glass-panel"
           >
             {/* Header */}
             <div className="px-4 py-3 border-b border-white/5 shrink-0">
               <div className="flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center text-[10px] font-black text-white">
+                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-bg shadow-[0_0_10px_rgba(0,245,212,0.5)]">
                   AI
                 </div>
                 <div>
@@ -240,7 +240,7 @@ export default function ChatAssistant() {
                   <div
                     className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed ${
                       msg.role === 'user'
-                        ? 'bg-cyan-500/20 text-cyan-100 rounded-br-sm'
+                        ? 'bg-primary/20 text-primary rounded-br-sm'
                         : 'bg-white/5 text-slate-300 rounded-bl-sm'
                     }`}
                   >
@@ -258,8 +258,38 @@ export default function ChatAssistant() {
               )}
             </div>
 
+            {/* Quick Actions */}
+            {messages.length === 1 && !isLoading && (
+              <div className="px-3 pb-2 flex gap-2 overflow-x-auto custom-scrollbar shrink-0">
+                {['Show risks', 'Best route', 'What should I do'].map((action) => (
+                  <button
+                    key={action}
+                    onClick={() => {
+                      setInput(action);
+                      // Cannot call handleSend directly here because we need setInput to take effect if we rely on it,
+                      // but we can just pass the string to a modified handler or do it async.
+                      // Workaround: set state then click or just rewrite handleSend logic briefly. We will just use the same logic inline.
+                      const syntheticSend = async (text: string) => {
+                        const userMsg: ChatMessage = { id: `msg-${Date.now()}`, role: 'user', content: text, timestamp: Date.now() };
+                        setMessages((prev) => [...prev, userMsg]);
+                        setIsLoading(true);
+                        const response = await generateResponse(text);
+                        const assistantMsg: ChatMessage = { id: `msg-${Date.now()}-resp`, role: 'assistant', content: response, timestamp: Date.now() };
+                        setMessages((prev) => [...prev, assistantMsg]);
+                        setIsLoading(false);
+                      };
+                      syntheticSend(action);
+                    }}
+                    className="whitespace-nowrap px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[10px] text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    {action}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {/* Input */}
-            <div className="p-3 border-t border-white/5 shrink-0">
+            <div className="p-3 pt-2 border-t border-white/5 shrink-0">
               <div className="flex items-center gap-2">
                 <input
                   ref={inputRef}
@@ -268,12 +298,12 @@ export default function ChatAssistant() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                   placeholder="Ask about risks, actions..."
-                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                  className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-primary/50 transition-colors"
                 />
                 <button
                   onClick={handleSend}
                   disabled={!input.trim() || isLoading}
-                  className="px-3 py-2 rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 text-xs font-bold hover:bg-cyan-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-3 py-2 rounded-lg bg-primary/20 border border-primary/40 text-primary text-xs font-bold hover:bg-primary/30 hover:shadow-[0_0_15px_rgba(0,245,212,0.4)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   →
                 </button>

@@ -201,7 +201,7 @@ export const TRANSPORT_STYLES: Record<TransportType, TransportStyle> = {
     label: 'Sea',
   },
   road: {
-    baseColor: '#a78bfa',
+    baseColor: '#00F5D4',
     lineWidth: 1.0,
     dashed: true,
     dashSize: 0.02,
