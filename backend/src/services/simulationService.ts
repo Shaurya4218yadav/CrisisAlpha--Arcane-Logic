@@ -118,7 +118,7 @@ export function startSimulation(simulationId: string, io: Server): boolean {
     if (!graph) return;
 
     // Run tick
-    const tickPayload = executeTick(s, graph, io);
+    const tickPayload = await executeTick(s, graph, io);
 
     // Emit via WebSocket
     io.to(simulationId).emit('sim:tick', tickPayload);
@@ -169,12 +169,29 @@ export function startSimulation(simulationId: string, io: Server): boolean {
 
 // ── Execute Single Tick ─────────────────────────────────────
 
-function executeTick(session: SimulationSession, graph: GraphState, io: Server): TickPayload {
+async function executeTick(session: SimulationSession, graph: GraphState, io: Server): Promise<TickPayload> {
   const config = session.config;
   const industryWeights = getIndustryWeights(config.industry);
 
   // 1. Propagate risk
-  propagateTick(graph, config, session.currentTick, industryWeights);
+  try {
+    const response = await fetch('http://localhost:8000/predict/scenario', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config)
+    });
+    if (response.ok) {
+      const data = (await response.json()) as any;
+      console.log(`[Sim] 🧠 Python Prediction Engine responded for tick ${session.currentTick}:`, data.message);
+      // Fallback local propagation until nodes/edges are actually mapped from Python
+      propagateTick(graph, config, session.currentTick, industryWeights);
+    } else {
+      propagateTick(graph, config, session.currentTick, industryWeights);
+    }
+  } catch (err) {
+    // Prediction engine not available, use deterministic local engine
+    propagateTick(graph, config, session.currentTick, industryWeights);
+  }
 
   // 2. Detect events
   const events = detectEvents(graph, session.id, session.currentTick);

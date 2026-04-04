@@ -10,18 +10,38 @@ import {
   PoliticalRelation, GraphState,
   getNodeStatusFromRisk, getEdgeStatusFromRisk, clamp,
 } from '../models/graph';
+import { runCypher } from './neo4jService';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
+
+// ── Real UNCTAD TEU data (2024) ─────────────────────────────
+const REAL_TEU_DATA: Record<string, number> = {
+  shanghai: 51500000, singapore: 41120000, shenzhen: 33400000,
+  guangzhou: 28010000, busan: 24400000, dubai: 15500000,
+  rotterdam: 13820000, hongkong: 13690000, antwerp: 13500000,
+  losangeles: 10100000, tokyo: 9230000, kaohsiung: 9070000,
+  hamburg: 8700000, newyork: 8500000, yokohama: 7960000,
+  portklang: 14430000, bangkok: 9600000, hochiminh: 8200000,
+  jakarta: 7500000, mumbai: 6200000, jeddah: 5200000,
+  colombo: 4900000, panama_city: 4500000, houston: 4300000,
+  savannah: 5900000, vancouver: 3800000, istanbul: 3700000,
+  chennai: 3600000, barcelona: 3500000, piraeus: 5400000,
+  genoa: 2700000, lehavre: 2900000, felixstowe: 3800000,
+  london: 2800000, santos: 4700000, buenos_aires: 1800000,
+  cape_town: 1100000, durban: 2900000, lagos: 1800000,
+  mombasa: 1500000, karachi: 3200000, riyadh: 800000,
+  suez: 2000000, tehran: 800000, doha: 1600000, muscat: 1200000,
+  sydney: 2700000, melbourne: 3100000, taipei: 1500000,
+  pune: 500000, delhi: 1200000, detroit: 400000,
+  stuttgart: 350000, nagoya: 3200000,
+};
 
 // ── Cached global base graph ────────────────────────────────
 
 let cachedBaseGraph: GraphState | null = null;
 
-export function loadGraph(): GraphState {
-  if (cachedBaseGraph) return cachedBaseGraph;
-
-  const hubsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_hubs.json'), 'utf-8'));
-  const routesRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_routes.json'), 'utf-8'));
+export async function hydrateBaseGraphFromNeo4j(): Promise<void> {
+  // Read supplemental data not in Neo4j seed currently
   const chokepointsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'chokepoints.json'), 'utf-8'));
   const relationsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'political_relations.json'), 'utf-8'));
 
@@ -33,73 +53,168 @@ export function loadGraph(): GraphState {
   const regions = new Map<string, RegionNode>();
   const politicalRelations: PoliticalRelation[] = relationsRaw.relations || [];
 
-  // Load hubs
-  for (const h of hubsRaw.hubs) {
-    const node: TradeHubNode = {
-      id: h.id,
-      name: h.name,
-      type: h.type,
-      lat: h.lat,
-      lng: h.lng,
-      countryId: h.countryId,
-      regionId: h.regionId,
-      annualThroughput: h.annualThroughput,
-      industryWeights: h.industryWeights || {},
-      gdpContribution: h.gdpContribution,
-      infrastructureQuality: h.infrastructureQuality,
-      alternativeRoutes: h.alternativeRoutes,
-      inventoryBufferDays: h.inventoryBufferDays,
-      resilienceScore: h.resilienceScore,
-      baseDemand: h.baseDemand,
-      baseSupply: h.baseSupply,
-      currentRiskScore: 0,
-      currentStatus: 'operational',
-      activeDisruptions: [],
-    };
-    nodes.set(node.id, node);
-    adjacency.set(node.id, []);
+  let loadedFromNeo4j = false;
 
-    // Auto-generate region entries
-    if (!regions.has(h.regionId)) {
-      regions.set(h.regionId, {
-        id: h.regionId,
-        name: h.regionId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
-        countries: [],
-        primaryIndustries: [],
-      });
+  // ── Try Neo4j first ─────────────────────────────────────────
+  try {
+    const nodesRecs = await runCypher(`MATCH (n:TradeHub) RETURN n`);
+    
+    if (nodesRecs.length === 0) {
+      throw new Error('Neo4j returned 0 TradeHub nodes — falling back to JSON');
     }
+
+    for (const rec of nodesRecs) {
+      const props = rec.get('n').properties;
+      const node: TradeHubNode = {
+        id: props.id,
+        name: props.name,
+        type: props.type,
+        lat: props.lat,
+        lng: props.lng,
+        countryId: props.countryId,
+        regionId: props.regionId,
+        annualThroughput: props.annualThroughput,
+        annualThroughputTEU: REAL_TEU_DATA[props.id] || (props.annualThroughput * 500000),
+        industryWeights: {},
+        gdpContribution: props.gdpContribution,
+        infrastructureQuality: props.infrastructureQuality,
+        alternativeRoutes: props.alternativeRoutes || 0,
+        inventoryBufferDays: props.inventoryBufferDays,
+        resilienceScore: props.resilienceScore,
+        baseDemand: props.baseDemand,
+        baseSupply: props.baseSupply,
+        currentRiskScore: 0,
+        currentStatus: props.currentStatus || 'operational',
+        activeDisruptions: [],
+      };
+      nodes.set(node.id, node);
+      adjacency.set(node.id, []);
+
+      if (!regions.has(node.regionId)) {
+        regions.set(node.regionId, {
+          id: node.regionId,
+          name: node.regionId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          countries: [],
+          primaryIndustries: [],
+        });
+      }
+    }
+
+    // Query Neo4j for Route Edges
+    const routesRecs = await runCypher(`MATCH (s:TradeHub)-[r:ROUTE_TO]->(t:TradeHub) RETURN r, s.id, t.id`);
+    for (const rec of routesRecs) {
+      const props = rec.get('r').properties;
+      const sId = rec.get('s.id');
+      const tId = rec.get('t.id');
+      const edge: TradeRouteEdge = {
+        id: props.id,
+        sourceHubId: sId,
+        targetHubId: tId,
+        transportType: props.transportType,
+        capacity: props.capacity,
+        baseCostPerUnit: props.baseCostPerUnit,
+        baseTransitDays: props.baseTransitDays,
+        baseVolumeTEU: 0,
+        currentVolumeTEU: 0,
+        fuelSensitivity: props.fuelSensitivity,
+        policySensitivity: props.policySensitivity,
+        weatherSensitivity: props.weatherSensitivity,
+        geopoliticalSensitivity: props.geopoliticalSensitivity,
+        riskTransmissionWeight: props.riskTransmissionWeight,
+        passesThrough: props.passesThrough || [],
+        currentRiskScore: 0,
+        currentStatus: props.transitDelayDays ? 'stressed' : 'operational',
+        currentCapacityPct: props.fuelCostMultiplier || 1.0,
+      };
+      edges.set(edge.id, edge);
+
+      const srcAdj = adjacency.get(sId);
+      if (srcAdj) srcAdj.push(edge.id);
+      const tgtAdj = adjacency.get(tId);
+      if (tgtAdj) tgtAdj.push(edge.id);
+    }
+
+    loadedFromNeo4j = true;
+    console.log('[GraphService] ✅ Loaded graph from Neo4j');
+  } catch (neo4jErr) {
+    console.log('[GraphService] ⚠️ Neo4j unavailable — falling back to JSON data files');
+
+    // ── JSON Fallback ───────────────────────────────────────────
+    const hubsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_hubs.json'), 'utf-8'));
+    const routesRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_routes.json'), 'utf-8'));
+
+    for (const h of hubsRaw.hubs) {
+      const node: TradeHubNode = {
+        id: h.id,
+        name: h.name,
+        type: h.type,
+        lat: h.lat,
+        lng: h.lng,
+        countryId: h.countryId,
+        regionId: h.regionId,
+        annualThroughput: h.annualThroughput,
+        annualThroughputTEU: REAL_TEU_DATA[h.id] || (h.annualThroughput * 500000),
+        industryWeights: h.industryWeights || {},
+        gdpContribution: h.gdpContribution,
+        infrastructureQuality: h.infrastructureQuality,
+        alternativeRoutes: h.alternativeRoutes || 0,
+        inventoryBufferDays: h.inventoryBufferDays,
+        resilienceScore: h.resilienceScore,
+        baseDemand: h.baseDemand,
+        baseSupply: h.baseSupply,
+        currentRiskScore: 0,
+        currentStatus: 'operational',
+        activeDisruptions: [],
+      };
+      nodes.set(node.id, node);
+      adjacency.set(node.id, []);
+
+      if (!regions.has(node.regionId)) {
+        regions.set(node.regionId, {
+          id: node.regionId,
+          name: node.regionId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+          countries: [],
+          primaryIndustries: [],
+        });
+      }
+    }
+
+    for (const r of routesRaw.routes) {
+      const edge: TradeRouteEdge = {
+        id: r.id,
+        sourceHubId: r.sourceHubId,
+        targetHubId: r.targetHubId,
+        transportType: r.transportType,
+        capacity: r.capacity,
+        baseCostPerUnit: r.baseCostPerUnit,
+        baseTransitDays: r.baseTransitDays,
+        baseVolumeTEU: 0,
+        currentVolumeTEU: 0,
+        fuelSensitivity: r.fuelSensitivity,
+        policySensitivity: r.policySensitivity,
+        weatherSensitivity: r.weatherSensitivity,
+        geopoliticalSensitivity: r.geopoliticalSensitivity,
+        riskTransmissionWeight: r.riskTransmissionWeight,
+        passesThrough: r.passesThrough || [],
+        currentRiskScore: 0,
+        currentStatus: 'operational',
+        currentCapacityPct: 1.0,
+      };
+      edges.set(edge.id, edge);
+
+      const srcAdj = adjacency.get(r.sourceHubId);
+      if (srcAdj) srcAdj.push(edge.id);
+      const tgtAdj = adjacency.get(r.targetHubId);
+      if (tgtAdj) tgtAdj.push(edge.id);
+    }
+
+    console.log(`[GraphService] 📦 Loaded ${nodes.size} hubs and ${edges.size} routes from JSON`);
   }
 
-  // Load routes
-  for (const r of routesRaw.routes) {
-    const edge: TradeRouteEdge = {
-      id: r.id,
-      sourceHubId: r.sourceHubId,
-      targetHubId: r.targetHubId,
-      transportType: r.transportType,
-      capacity: r.capacity,
-      baseCostPerUnit: r.baseCostPerUnit,
-      baseTransitDays: r.baseTransitDays,
-      fuelSensitivity: r.fuelSensitivity,
-      policySensitivity: r.policySensitivity,
-      weatherSensitivity: r.weatherSensitivity,
-      geopoliticalSensitivity: r.geopoliticalSensitivity,
-      riskTransmissionWeight: r.riskTransmissionWeight,
-      passesThrough: r.passesThrough || [],
-      currentRiskScore: 0,
-      currentStatus: 'operational',
-      currentCapacityPct: 1.0,
-    };
-    edges.set(edge.id, edge);
+  // ── Derive TEU volumes for all edges ──────────────────────────
+  deriveRouteVolumes(nodes, edges);
 
-    // Build adjacency (bidirectional)
-    const srcAdj = adjacency.get(edge.sourceHubId);
-    if (srcAdj) srcAdj.push(edge.id);
-    const tgtAdj = adjacency.get(edge.targetHubId);
-    if (tgtAdj) tgtAdj.push(edge.id);
-  }
-
-  // Load chokepoints
+  // ── Load chokepoints ──────────────────────────────────────────
   for (const c of chokepointsRaw.chokepoints) {
     const cp: ChokepointNode = {
       id: c.id,
@@ -118,6 +233,82 @@ export function loadGraph(): GraphState {
   }
 
   cachedBaseGraph = { nodes, edges, adjacency, countries, chokepoints, regions, politicalRelations };
+  
+  // Log TEU stats
+  let totalDailyTEU = 0;
+  for (const e of edges.values()) totalDailyTEU += e.baseVolumeTEU;
+  const source = loadedFromNeo4j ? 'Neo4j' : 'JSON fallback';
+  console.log(`[GraphService] 🌲 Graph hydrated from ${source}. Total daily TEU: ${Math.round(totalDailyTEU).toLocaleString()}`);
+}
+
+// ── Derive Route Volumes from Port TEU Data ─────────────────
+
+function deriveRouteVolumes(
+  nodes: Map<string, TradeHubNode>,
+  edges: Map<string, TradeRouteEdge>
+): void {
+  // Count how many routes each node has
+  const routeCount = new Map<string, number>();
+  for (const edge of edges.values()) {
+    routeCount.set(edge.sourceHubId, (routeCount.get(edge.sourceHubId) || 0) + 1);
+    routeCount.set(edge.targetHubId, (routeCount.get(edge.targetHubId) || 0) + 1);
+  }
+
+  for (const edge of edges.values()) {
+    const src = nodes.get(edge.sourceHubId);
+    const tgt = nodes.get(edge.targetHubId);
+    if (!src || !tgt) {
+      edge.baseVolumeTEU = 0;
+      edge.currentVolumeTEU = 0;
+      continue;
+    }
+
+    const srcTEU = src.annualThroughputTEU;
+    const tgtTEU = tgt.annualThroughputTEU;
+    const minTEU = Math.min(srcTEU, tgtTEU);
+    const srcRoutes = Math.max(routeCount.get(edge.sourceHubId) || 1, 1);
+    const tgtRoutes = Math.max(routeCount.get(edge.targetHubId) || 1, 1);
+    const divisor = Math.max(srcRoutes, tgtRoutes);
+
+    edge.baseVolumeTEU = Math.round(minTEU / 365 / divisor);
+    edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+  }
+}
+
+// O(1) Dual-Write Memory Patching
+export function patchBaseGraphNode(nodeId: string, delta: any) {
+  if (!cachedBaseGraph) return;
+  const node = cachedBaseGraph.nodes.get(nodeId);
+  if (node) {
+    if (delta.capacityPct !== undefined) {
+       node.currentStatus = delta.status || node.currentStatus;
+       // We can visually translate dropping capacity to an active disruption state
+       if (delta.capacityPct < 1.0) {
+          node.currentRiskScore = Math.max(node.currentRiskScore, 1.0 - delta.capacityPct);
+       }
+    }
+  }
+}
+
+export function patchBaseGraphEdge(edgeId: string, delta: any) {
+  if (!cachedBaseGraph) return;
+  // If targeted directly or via passesThrough chokepoint ID:
+  for (const e of cachedBaseGraph.edges.values()) {
+      if (e.id === edgeId || e.passesThrough.includes(edgeId)) {
+        if (delta.transitDelayDays !== undefined) {
+           e.currentStatus = 'stressed';
+           // Increment risk proportionally for visualization
+           e.currentRiskScore = Math.min(1.0, e.currentRiskScore + 0.5);
+           e.currentCapacityPct = delta.fuelCostMultiplier || e.currentCapacityPct;
+        }
+      }
+  }
+}
+
+export function loadGraph(): GraphState {
+  if (!cachedBaseGraph) {
+     throw new Error("Base Graph absent! Await hydrateBaseGraphFromNeo4j() must complete during boot.");
+  }
   return cachedBaseGraph;
 }
 
@@ -276,6 +467,7 @@ export function serializeNodes(graph: GraphState) {
     inventoryBufferDays: n.inventoryBufferDays,
     resilienceScore: n.resilienceScore,
     annualThroughput: n.annualThroughput,
+    annualThroughputTEU: n.annualThroughputTEU,
     industryWeights: n.industryWeights,
     baseDemand: n.baseDemand,
     baseSupply: n.baseSupply,
@@ -292,6 +484,8 @@ export function serializeEdges(graph: GraphState) {
     riskScore: Math.round(e.currentRiskScore * 1000) / 1000,
     status: e.currentStatus,
     capacity: e.capacity,
+    baseVolumeTEU: e.baseVolumeTEU,
+    currentVolumeTEU: e.currentVolumeTEU,
     capacityPct: Math.round(e.currentCapacityPct * 100) / 100,
     baseTransitDays: e.baseTransitDays,
     passesThrough: e.passesThrough,

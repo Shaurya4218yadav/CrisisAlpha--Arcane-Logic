@@ -12,12 +12,14 @@ import ControlPanel from '@/components/controls/ControlPanel';
 import EventFeed from '@/components/events/EventFeed';
 import DecisionPanel from '@/components/decisions/DecisionPanel';
 import IntelFeed from '@/components/panels/IntelFeed';
-import { api, disconnectSocket } from '@/lib/api/client';
+import SimulationLogs from '@/components/panels/SimulationLogs';
+import FleetSearchPanel from '@/components/panels/FleetSearchPanel';
 
-type TabId = 'events' | 'decisions' | 'alerts';
+type TabId = 'events' | 'decisions' | 'intel' | 'logs' | 'radar';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'events', label: 'Events', icon: '⚡' },
+  { id: 'radar', label: 'Radar', icon: '📡' },
   { id: 'decisions', label: 'Actions', icon: '🎯' },
   { id: 'alerts', label: 'Alerts', icon: '⚠️' },
 ];
@@ -147,6 +149,13 @@ export default function RightPanel() {
           <div className="w-2 h-2 rounded-full bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Critical</span>
         </div>
+      {/* Tab Content */}
+      <div className="flex-1 overflow-hidden p-3">
+        {activeTab === 'events' && <EventFeed />}
+        {activeTab === 'radar' && <FleetSearchPanel />}
+        {activeTab === 'decisions' && <DecisionPanel />}
+        {activeTab === 'intel' && <IntelFeed />}
+        {activeTab === 'logs' && <SimulationLogs />}
       </div>
     </div>
   );

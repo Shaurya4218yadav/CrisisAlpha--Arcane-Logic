@@ -305,7 +305,33 @@ export function connectSocket(
 
 export function disconnectSocket() {
   if (socket) {
-    socket.disconnect();
-    socket = null;
+  }
+}
+
+let telematicsSocket: Socket | null = null;
+
+export function connectTelematicsSocket(onFrame: (vehicles: any[]) => void) {
+  if (telematicsSocket) return telematicsSocket;
+  
+  telematicsSocket = io(API_BASE, {
+    transports: ['websocket', 'polling'],
+  });
+
+  telematicsSocket.on('connect', () => {
+    console.log('[WS] 🛰️ Connected to Telematics Feed');
+    telematicsSocket?.emit('telematics:subscribe');
+  });
+
+  telematicsSocket.on('telematics:frame', (data: any[]) => {
+    onFrame(data);
+  });
+
+  return telematicsSocket;
+}
+
+export function disconnectTelematicsSocket() {
+  if (telematicsSocket) {
+    telematicsSocket.disconnect();
+    telematicsSocket = null;
   }
 }

@@ -22,6 +22,7 @@ import {
 } from '@/lib/globe/utils';
 import { GraphNode, GraphEdge } from '@/types';
 import type { ViewLayer } from '@/components/globe/LayerToggle';
+import VehicleLayer from './VehicleLayer';
 
 const GLOBE_RADIUS = 2;
 
@@ -754,7 +755,10 @@ function GlobeScene({ activeLayer }: { activeLayer: ViewLayer }) {
       />
       <Arcs edges={edges} nodes={nodes} activeLayer={activeLayer} globalSelectedId={selectedNodeId} />
 
-      {/* Controllers */}
+      {/* Live Fleet Tracking Layer */}
+      <VehicleLayer />
+
+      {/* Controls */}
       <OrbitControls
         enablePan={false}
         minDistance={2.8}

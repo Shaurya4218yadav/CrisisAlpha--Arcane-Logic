@@ -1,90 +1,218 @@
 // ============================================================
-// CrisisAlpha — Ingestion Service
-// Simulated live event feed for base reality
+// CrisisAlpha — Ingestion Service (v2)
+// Kafka consumer with graceful fallback + event type handlers
 // ============================================================
 
-import { v4 as uuid } from 'uuid';
+import { patchBaseGraphNode, patchBaseGraphEdge, loadGraph } from './graphService';
 import type { WorldEvent, GraphMutation } from '../models/event';
-import { LIVE_EVENT_SCENARIOS } from '../models/event';
+import type { GraphState } from '../models/graph';
+import { clamp } from '../models/graph';
 import { appendEvent } from './eventStoreService';
-import { loadGraph } from './graphService';
-import { getNodeStatusFromRisk, clamp } from '../models/graph';
+import { registerDecay } from './riskDecayService';
 
-let ingestionInterval: NodeJS.Timeout | null = null;
-let isRunning = false;
-const INGESTION_INTERVAL_MS = 30_000; // one event every ~30 seconds
-let eventCallbacks: Array<(event: WorldEvent) => void> = [];
+// ── Event callback registry ────────────────────────────────
 
-// ── Start / Stop ────────────────────────────────────────────
+let eventCallbacks: Array<(event: any) => void> = [];
 
-export function startIngestion(): void {
-  if (isRunning) return;
-  isRunning = true;
-
-  console.log('[Ingestion] 📡 Live event ingestion started');
-
-  ingestionInterval = setInterval(() => {
-    // Random chance to fire an event (60% probability per tick)
-    if (Math.random() < 0.6) {
-      const event = generateRandomEvent();
-      const appended = appendEvent(event);
-
-      // Apply mutations to base reality graph
-      applyMutationsToBaseReality(appended);
-
-      // Notify subscribers
-      for (const cb of eventCallbacks) {
-        cb(appended);
-      }
-
-      console.log(`[Ingestion] 🌍 ${appended.title} (${appended.severity})`);
-    }
-  }, INGESTION_INTERVAL_MS);
-}
-
-export function stopIngestion(): void {
-  if (!isRunning) return;
-  isRunning = false;
-
-  if (ingestionInterval) {
-    clearInterval(ingestionInterval);
-    ingestionInterval = null;
-  }
-  console.log('[Ingestion] ⏹️  Live event ingestion stopped');
-}
-
-export function isIngestionRunning(): boolean {
-  return isRunning;
-}
-
-// ── Subscribe to live events ────────────────────────────────
-
-export function onLiveEvent(callback: (event: WorldEvent) => void): () => void {
+export function onLiveEvent(callback: (event: any) => void): () => void {
   eventCallbacks.push(callback);
-  return () => {
-    eventCallbacks = eventCallbacks.filter(cb => cb !== callback);
-  };
+  return () => { eventCallbacks = eventCallbacks.filter(cb => cb !== callback); };
 }
 
-// ── Manual Event Injection ──────────────────────────────────
+let isRunning = false;
+let kafkaAvailable = false;
+
+// ── Apply Graph Mutations ──────────────────────────────────
+
+function applyMutations(mutations: GraphMutation[]): void {
+  let graph: GraphState;
+  try {
+    graph = loadGraph();
+  } catch {
+    return;
+  }
+
+  for (const m of mutations) {
+    // Register decay timer for temporary effects
+    if (m.durationHours && typeof m.value === 'number' && m.operation === 'increment') {
+      registerDecay(m.targetType as any, m.targetId, m.value, m.durationHours);
+    }
+
+    if (m.targetType === 'node') {
+      const node = graph.nodes.get(m.targetId);
+      if (node && m.property === 'currentRiskScore') {
+        if (m.operation === 'increment') {
+          node.currentRiskScore = clamp(node.currentRiskScore + (m.value as number));
+        } else if (m.operation === 'set') {
+          node.currentRiskScore = clamp(m.value as number);
+        } else if (m.operation === 'multiply') {
+          node.currentRiskScore = clamp(node.currentRiskScore * (m.value as number));
+        }
+        // Update status based on risk
+        if (node.currentRiskScore >= 0.8) node.currentStatus = 'shutdown';
+        else if (node.currentRiskScore >= 0.6) node.currentStatus = 'disrupted';
+        else if (node.currentRiskScore >= 0.3) node.currentStatus = 'stressed';
+        else node.currentStatus = 'operational';
+      }
+    }
+
+    if (m.targetType === 'chokepoint') {
+      const cp = graph.chokepoints.get(m.targetId);
+      if (cp && m.property === 'currentRiskScore') {
+        if (m.operation === 'increment') {
+          cp.currentRiskScore = clamp(cp.currentRiskScore + (m.value as number));
+        } else if (m.operation === 'set') {
+          cp.currentRiskScore = clamp(m.value as number);
+        }
+        if (cp.currentRiskScore >= 0.6) cp.currentStatus = 'disrupted';
+        else if (cp.currentRiskScore >= 0.3) cp.currentStatus = 'stressed';
+        else cp.currentStatus = 'operational';
+
+        // Propagate to edges passing through this chokepoint
+        for (const edge of graph.edges.values()) {
+          if (edge.passesThrough.includes(m.targetId)) {
+            edge.currentRiskScore = clamp(edge.currentRiskScore + (m.value as number) * 0.5);
+            edge.currentCapacityPct = clamp(1.0 - edge.currentRiskScore * 0.5, 0.1, 1.0);
+            edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+          }
+        }
+      }
+    }
+
+    if (m.targetType === 'edge') {
+      const edge = graph.edges.get(m.targetId);
+      if (edge && m.property === 'currentRiskScore') {
+        if (m.operation === 'increment') {
+          edge.currentRiskScore = clamp(edge.currentRiskScore + (m.value as number));
+        }
+        edge.currentCapacityPct = clamp(1.0 - edge.currentRiskScore * 0.5, 0.1, 1.0);
+        edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+      }
+    }
+  }
+}
+
+// ── Event Type Handlers ────────────────────────────────────
+
+function handleConflictEvent(event: WorldEvent): void {
+  console.log(`[INGEST] Processing CONFLICT_EVENT: "${event.title}"`);
+  applyMutations(event.graphMutations);
+
+  // Also affect cross-border edges through political sensitivity
+  try {
+    const graph = loadGraph();
+    for (const hubId of event.affectedHubIds) {
+      const node = graph.nodes.get(hubId);
+      if (!node) continue;
+      // Raise risk on all edges connecting to affected node
+      const edgeIds = graph.adjacency.get(hubId) || [];
+      for (const eid of edgeIds) {
+        const edge = graph.edges.get(eid);
+        if (edge) {
+          const riskDelta = edge.geopoliticalSensitivity * 0.1;
+          edge.currentRiskScore = clamp(edge.currentRiskScore + riskDelta);
+          edge.currentCapacityPct = clamp(1.0 - edge.currentRiskScore * 0.5, 0.1, 1.0);
+          edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+        }
+      }
+    }
+  } catch {}
+}
+
+function handlePolicyEvent(event: WorldEvent): void {
+  console.log(`[INGEST] Processing POLICY_EVENT: "${event.title}"`);
+  applyMutations(event.graphMutations);
+
+  // Affect cross-border edges via policySensitivity
+  try {
+    const graph = loadGraph();
+    for (const hubId of event.affectedHubIds) {
+      const edgeIds = graph.adjacency.get(hubId) || [];
+      for (const eid of edgeIds) {
+        const edge = graph.edges.get(eid);
+        if (edge) {
+          const riskDelta = edge.policySensitivity * 0.12;
+          edge.currentRiskScore = clamp(edge.currentRiskScore + riskDelta);
+          edge.currentCapacityPct = clamp(1.0 - edge.currentRiskScore * 0.5, 0.1, 1.0);
+          edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+        }
+      }
+    }
+  } catch {}
+}
+
+function handleWeatherEvent(event: WorldEvent): void {
+  console.log(`[INGEST] Processing WEATHER_EVENT: "${event.title}"`);
+  applyMutations(event.graphMutations);
+
+  // Weather also reduces connected edge capacity via weatherSensitivity
+  try {
+    const graph = loadGraph();
+    for (const hubId of event.affectedHubIds) {
+      const edgeIds = graph.adjacency.get(hubId) || [];
+      for (const eid of edgeIds) {
+        const edge = graph.edges.get(eid);
+        if (edge) {
+          const riskDelta = edge.weatherSensitivity * 0.1;
+          edge.currentRiskScore = clamp(edge.currentRiskScore + riskDelta);
+          edge.currentCapacityPct = clamp(1.0 - edge.currentRiskScore * 0.5, 0.1, 1.0);
+          edge.currentVolumeTEU = Math.round(edge.baseVolumeTEU * edge.currentCapacityPct);
+        }
+      }
+    }
+  } catch {}
+}
+
+// ── Process Incoming Event ─────────────────────────────────
+
+export function processWorldEvent(event: WorldEvent): void {
+  // Route to correct handler based on category
+  switch (event.category) {
+    case 'conflict':
+      handleConflictEvent(event);
+      break;
+    case 'policy':
+      handlePolicyEvent(event);
+      break;
+    case 'weather':
+    case 'disaster':
+      handleWeatherEvent(event);
+      break;
+    default:
+      // Generic: just apply mutations
+      applyMutations(event.graphMutations);
+      break;
+  }
+
+  // Store in event store for feed API
+  appendEvent(event);
+
+  // Emit to all subscribers
+  for (const cb of eventCallbacks) {
+    cb(event);
+  }
+}
+
+// ── Inject Event (manual / API) ────────────────────────────
 
 export function injectEvent(
   title: string,
   summary: string,
-  category: WorldEvent['category'],
-  severity: WorldEvent['severity'],
+  category: string,
+  severity: string,
   affectedHubIds: string[],
   affectedCountries: string[],
   affectedChokepointIds: string[],
   mutations: GraphMutation[]
 ): WorldEvent {
+  const { v4: uuidv4 } = require('uuid');
   const event: WorldEvent = {
-    id: `inj_${uuid().slice(0, 8)}`,
+    id: `inj_${uuidv4().slice(0, 8)}`,
     timestamp: new Date().toISOString(),
     source: 'user',
-    category,
-    subcategory: 'manual_injection',
-    severity,
+    category: category as any,
+    subcategory: category,
+    severity: severity as any,
     affectedCountries,
     affectedHubIds,
     affectedChokepointIds,
@@ -93,102 +221,71 @@ export function injectEvent(
     summary,
     graphMutations: mutations,
     branchId: 'base',
-    isSynthetic: false,
+    isSynthetic: true,
   };
 
-  const appended = appendEvent(event);
-  applyMutationsToBaseReality(appended);
-
-  for (const cb of eventCallbacks) {
-    cb(appended);
-  }
-
-  return appended;
+  processWorldEvent(event);
+  return event;
 }
 
-// ── Random Event Generation ─────────────────────────────────
+// ── Kafka Ingestion (graceful) ─────────────────────────────
 
-function generateRandomEvent(): WorldEvent {
-  const scenario = LIVE_EVENT_SCENARIOS[Math.floor(Math.random() * LIVE_EVENT_SCENARIOS.length)];
+export async function startIngestion(): Promise<void> {
+  if (isRunning) return;
+  isRunning = true;
 
-  // Vary severity slightly
-  const severities: WorldEvent['severity'][] = ['low', 'medium', 'high', 'critical'];
-  const baseSeverityIdx = severities.indexOf(scenario.severity);
-  const variation = Math.random() < 0.3 ? (Math.random() < 0.5 ? -1 : 1) : 0;
-  const newSeverityIdx = Math.max(0, Math.min(3, baseSeverityIdx + variation));
+  console.log('[Ingestion] 📡 Attempting Kafka connection...');
+  
+  try {
+    const { Kafka } = require('kafkajs');
+    const kafka = new Kafka({
+      clientId: 'crisisalpha-consumer',
+      brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+      connectionTimeout: 5000,
+      requestTimeout: 5000,
+      retry: { retries: 2 },
+    });
 
-  // Scale mutations by severity ratio
-  const severityScale = (newSeverityIdx + 1) / (baseSeverityIdx + 1);
-  const scaledMutations: GraphMutation[] = scenario.mutations.map(m => ({
-    ...m,
-    value: typeof m.value === 'number' ? Math.round(m.value * severityScale * 100) / 100 : m.value,
-  }));
+    const consumer = kafka.consumer({ groupId: 'base-reality-group' });
+    await consumer.connect();
+    await consumer.subscribe({ topic: 'base-reality.disruptions', fromBeginning: false });
 
-  return {
-    id: `live_${uuid().slice(0, 8)}`,
-    timestamp: new Date().toISOString(),
-    source: 'gdelt',
-    category: scenario.category,
-    subcategory: scenario.subcategory,
-    severity: severities[newSeverityIdx],
-    affectedCountries: scenario.affectedCountries,
-    affectedHubIds: scenario.affectedHubIds,
-    affectedChokepointIds: scenario.affectedChokepointIds,
-    affectedRegionIds: [],
-    title: scenario.title,
-    summary: scenario.summary,
-    graphMutations: scaledMutations,
-    branchId: 'base',
-    isSynthetic: false,
-  };
+    kafkaAvailable = true;
+    console.log('[Ingestion] 🚀 Kafka connected — listening for disruptions');
+
+    await consumer.run({
+      eachMessage: async ({ message }: any) => {
+        if (!message.value) return;
+        const event = JSON.parse(message.value.toString());
+        console.log(`[Ingestion] 📥 Kafka event: [${event.eventType || event.category}] → [${event.targetId || event.affectedHubIds?.join(',')}]`);
+
+        // Handle legacy format from existing producers
+        if (event.eventType === 'NODE_DISRUPTION') {
+          patchBaseGraphNode(event.targetId, event.delta);
+        } else if (event.eventType === 'ROUTE_CONSTRICTION') {
+          patchBaseGraphEdge(event.targetId, event.delta);
+        } else {
+          // New WorldEvent format
+          processWorldEvent(event);
+        }
+      },
+    });
+  } catch (err) {
+    kafkaAvailable = false;
+    console.log('[Ingestion] ⚠️ Kafka unavailable — using in-memory event pipeline only');
+    console.log('[Ingestion] ✅ Backend continues with local producers (no Kafka required)');
+  }
 }
 
-// ── Apply Mutations to Base Reality ─────────────────────────
+export async function stopIngestion(): Promise<void> {
+  isRunning = false;
+  console.log('[Ingestion] ⏹️ Ingestion stopped');
+}
 
-function applyMutationsToBaseReality(event: WorldEvent): void {
-  const graph = loadGraph();
+export function isIngestionRunning(): boolean {
+  return isRunning;
+}
 
-  for (const mutation of event.graphMutations) {
-    if (mutation.targetType === 'node') {
-      const node = graph.nodes.get(mutation.targetId);
-      if (!node) continue;
-
-      if (mutation.property === 'currentRiskScore') {
-        if (mutation.operation === 'increment') {
-          node.currentRiskScore = clamp(node.currentRiskScore + (mutation.value as number));
-        } else if (mutation.operation === 'set') {
-          node.currentRiskScore = clamp(mutation.value as number);
-        } else if (mutation.operation === 'multiply') {
-          node.currentRiskScore = clamp(node.currentRiskScore * (mutation.value as number));
-        }
-        node.currentStatus = getNodeStatusFromRisk(node.currentRiskScore);
-      }
-    } else if (mutation.targetType === 'chokepoint') {
-      const cp = graph.chokepoints.get(mutation.targetId);
-      if (!cp) continue;
-
-      if (mutation.property === 'currentRiskScore') {
-        if (mutation.operation === 'increment') {
-          cp.currentRiskScore = clamp(cp.currentRiskScore + (mutation.value as number));
-        } else if (mutation.operation === 'set') {
-          cp.currentRiskScore = clamp(mutation.value as number);
-        }
-        cp.currentStatus = getNodeStatusFromRisk(cp.currentRiskScore);
-      }
-    }
-  }
-
-  // Natural decay toward stability for base reality
-  for (const [, node] of graph.nodes) {
-    if (node.currentRiskScore > 0) {
-      node.currentRiskScore = clamp(node.currentRiskScore * 0.98); // 2% decay per tick
-      node.currentStatus = getNodeStatusFromRisk(node.currentRiskScore);
-    }
-  }
-  for (const [, cp] of graph.chokepoints) {
-    if (cp.currentRiskScore > 0) {
-      cp.currentRiskScore = clamp(cp.currentRiskScore * 0.98);
-      cp.currentStatus = getNodeStatusFromRisk(cp.currentRiskScore);
-    }
-  }
+export function isKafkaConnected(): boolean {
+  return kafkaAvailable;
 }

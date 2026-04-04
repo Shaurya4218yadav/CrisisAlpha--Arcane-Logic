@@ -19,9 +19,13 @@ import feedRoutes from './routes/feedRoutes';
 import chatRoutes from './routes/chatRoutes';
 
 // Services
-import { loadGraph } from './services/graphService';
-import { startIngestion, onLiveEvent } from './services/ingestionService';
+import { loadGraph, hydrateBaseGraphFromNeo4j } from './services/graphService';
+import { startIngestion, onLiveEvent, processWorldEvent } from './services/ingestionService';
 import { initInference } from './services/inferenceService';
+import { startTelematicsIngestion, onTelematicsFrame } from './services/telematicsService';
+import { startNewsIngestion, onNewsEvent } from './services/newsIngestionService';
+import { startAllProducers, onTrafficUpdate, onWeatherEvent } from './services/liveDataProducers';
+import { startRiskDecay } from './services/riskDecayService';
 
 const app = express();
 const httpServer = createServer(app);
@@ -45,13 +49,19 @@ app.use('/api/chat', chatRoutes);
 // Health check
 app.get('/api/health', (req, res) => {
   const graph = loadGraph();
+  
+  // Calculate live TEU stats
+  let totalDailyTEU = 0;
+  for (const e of graph.edges.values()) totalDailyTEU += e.currentVolumeTEU;
+  
   res.json({
     status: 'ok',
-    version: '2.0.0',
+    version: '2.1.0',
     pillars: {
       realTimeSimulation: true,
       whatIfEngine: true,
       predictiveImpact: true,
+      liveDataIngestion: true,
     },
     graph: {
       nodes: graph.nodes.size,
@@ -59,6 +69,7 @@ app.get('/api/health', (req, res) => {
       chokepoints: graph.chokepoints.size,
       regions: graph.regions.size,
       politicalRelations: graph.politicalRelations.length,
+      totalDailyTEU: Math.round(totalDailyTEU),
     },
     timestamp: new Date().toISOString(),
   });
@@ -92,15 +103,72 @@ io.on('connection', (socket) => {
     console.log(`[WS] 🌍 ${socket.id} subscribed to reality feed`);
   });
 
+  // Join telematics feed
+  socket.on('telematics:subscribe', () => {
+    socket.join('telematics');
+    console.log(`[WS] 🛰️ ${socket.id} subscribed to live traffic feed`);
+  });
+
   socket.on('disconnect', () => {
     console.log(`[WS] ❌ Client disconnected: ${socket.id}`);
   });
 });
 
-// Subscribe ingestion events to WebSocket reality room
+// ── Wire live events to WebSocket ───────────────────────────
+
+// Events from Kafka ingestion → reality room
 onLiveEvent((event) => {
   io.to('reality').emit('reality:event', event);
 });
+
+// Events from GDELT news → process + emit
+onNewsEvent((event) => {
+  processWorldEvent(event);
+  io.to('reality').emit('reality:event', event);
+});
+
+// Events from weather mock → process + emit
+onWeatherEvent((event) => {
+  processWorldEvent(event);
+  io.to('reality').emit('reality:event', event);
+});
+
+// Traffic updates → emit to reality room
+onTrafficUpdate((update) => {
+  io.to('reality').emit('reality:traffic', update);
+});
+
+// Subscribe telematics frames
+onTelematicsFrame((frame) => {
+  io.to('telematics').emit('telematics:frame', frame);
+});
+
+// Periodically emit network stats to reality subscribers
+setInterval(() => {
+  try {
+    const graph = loadGraph();
+    let totalDailyTEU = 0;
+    let disruptions = 0;
+    let totalRisk = 0;
+    
+    for (const e of graph.edges.values()) totalDailyTEU += e.currentVolumeTEU;
+    for (const n of graph.nodes.values()) {
+      totalRisk += n.currentRiskScore;
+      if (n.currentRiskScore > 0.1) disruptions++;
+    }
+    
+    const networkHealth = graph.nodes.size > 0 
+      ? Math.round((1 - totalRisk / graph.nodes.size) * 1000) / 10 
+      : 100;
+    
+    io.to('reality').emit('reality:stats', {
+      totalDailyVolumeTEU: Math.round(totalDailyTEU),
+      activeDisruptions: disruptions,
+      networkHealthPct: networkHealth,
+      timestamp: new Date().toISOString(),
+    });
+  } catch {}
+}, 15000); // Every 15 seconds
 
 // ── Startup ─────────────────────────────────────────────────
 
@@ -108,12 +176,13 @@ const PORT = process.env.PORT || 3001;
 
 async function boot() {
   console.log('\n╔══════════════════════════════════════════════╗');
-  console.log('║       CrisisAlpha Simulation Engine v2       ║');
-  console.log('║          Three-Pillar Architecture            ║');
+  console.log('║       CrisisAlpha Simulation Engine v2.1     ║');
+  console.log('║    Three-Pillar Architecture + Live Data      ║');
   console.log('╚══════════════════════════════════════════════╝\n');
 
-  // 1. Load graph
-  console.log('[Boot] 📊 Loading world graph...');
+  // 1. Load graph from Neo4j
+  console.log('[Boot] 📊 Hydrating base graph from Neo4j...');
+  await hydrateBaseGraphFromNeo4j();
   const graph = loadGraph();
   console.log(`[Boot] ✅ Graph loaded: ${graph.nodes.size} hubs, ${graph.edges.size} routes, ${graph.chokepoints.size} chokepoints`);
 
@@ -121,16 +190,29 @@ async function boot() {
   console.log('[Boot] 🤖 Initializing AI inference...');
   await initInference();
 
-  // 3. Start live event ingestion
-  console.log('[Boot] 📡 Starting live event ingestion...');
-  startIngestion();
+  // 3. Start Kafka ingestion (graceful — won't crash if unavailable)
+  console.log('[Boot] 📡 Starting event ingestion...');
+  await startIngestion();
 
-  // 4. Start server
+  // 4. Start live data producers
+  console.log('[Boot] 🛰️ Starting live data producers...');
+  startNewsIngestion();
+  startAllProducers();
+
+  // 5. Start risk decay engine
+  console.log('[Boot] ⏳ Starting risk decay engine...');
+  startRiskDecay();
+
+  // 6. Start telematics
+  console.log('[Boot] 🚛 Starting vehicle telematics...');
+  await startTelematicsIngestion();
+
+  // 7. Start server
   httpServer.listen(PORT, () => {
     console.log(`\n[Server] 🚀 CrisisAlpha backend running on http://localhost:${PORT}`);
     console.log(`[Server] 📡 WebSocket server on ws://localhost:${PORT}`);
     console.log('\n[API Endpoints]');
-    console.log('  GET  /api/health              — Health check');
+    console.log('  GET  /api/health              — Health check + TEU stats');
     console.log('  GET  /api/graph/full           — Full world graph');
     console.log('  GET  /api/graph/nodes          — All trade hubs');
     console.log('  GET  /api/graph/edges          — All trade routes');
@@ -147,7 +229,13 @@ async function boot() {
     console.log('  GET  /api/sim/:id/state         — Current state');
     console.log('  GET  /api/sim/:id/impact        — AI impact report');
     console.log('  GET  /api/feed/recent           — Live event feed');
+    console.log('  GET  /api/feed/stats            — Network stats (TEU)');
+    console.log('  GET  /api/feed/status           — Ingestion health');
     console.log('  POST /api/feed/inject           — Manual event injection');
+    console.log('\n[Live Data Sources]');
+    console.log('  📰 GDELT News          — 5-min poll (real + mock fallback)');
+    console.log('  🚢 AIS Ship Traffic     — 30s mock producer');
+    console.log('  🌀 Weather Alerts       — 2-min seasonal mock producer');
     console.log('');
   });
 }

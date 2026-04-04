@@ -1,11 +1,12 @@
 // ============================================================
-// CrisisAlpha — Feed Routes
-// REST API for live event feed
+// CrisisAlpha — Feed Routes (v2)
+// REST API for live event feed + network stats
 // ============================================================
 
 import { Router, Request, Response } from 'express';
 import { getRecentEvents, getEventStoreStats, getAllEvents } from '../services/eventStoreService';
-import { injectEvent, isIngestionRunning, startIngestion, stopIngestion } from '../services/ingestionService';
+import { injectEvent, isIngestionRunning, startIngestion, stopIngestion, isKafkaConnected } from '../services/ingestionService';
+import { loadGraph } from '../services/graphService';
 import type { GraphMutation } from '../models/event';
 
 const router = Router();
@@ -29,11 +30,67 @@ router.get('/all', (req: Request, res: Response) => {
   });
 });
 
+// GET /api/feed/stats — live network statistics
+router.get('/stats', (req: Request, res: Response) => {
+  try {
+    const graph = loadGraph();
+    
+    // Calculate total daily volume TEU
+    let totalDailyVolumeTEU = 0;
+    let disruptedEdges = 0;
+    for (const edge of graph.edges.values()) {
+      totalDailyVolumeTEU += edge.currentVolumeTEU;
+      if (edge.currentStatus !== 'operational') disruptedEdges++;
+    }
+
+    // Count active disruptions (nodes with risk > 0.1)
+    let activeDisruptions = 0;
+    let affectedHubs = 0;
+    let totalRisk = 0;
+    for (const node of graph.nodes.values()) {
+      totalRisk += node.currentRiskScore;
+      if (node.currentRiskScore > 0.1) {
+        activeDisruptions++;
+        affectedHubs++;
+      }
+    }
+
+    // Network health: average of (1 - risk) across all nodes
+    const avgRisk = graph.nodes.size > 0 ? totalRisk / graph.nodes.size : 0;
+    const networkHealthPct = Math.round((1 - avgRisk) * 1000) / 10;
+
+    // Count chokepoint disruptions
+    let chokepointDisruptions = 0;
+    for (const cp of graph.chokepoints.values()) {
+      if (cp.currentRiskScore > 0.1) chokepointDisruptions++;
+    }
+
+    const eventStats = getEventStoreStats();
+
+    res.json({
+      totalDailyVolumeTEU: Math.round(totalDailyVolumeTEU),
+      activeDisruptions: activeDisruptions + chokepointDisruptions,
+      affectedHubs,
+      disruptedEdges,
+      networkHealthPct,
+      totalNodes: graph.nodes.size,
+      totalEdges: graph.edges.size,
+      totalChokepoints: graph.chokepoints.size,
+      kafkaConnected: isKafkaConnected(),
+      eventStoreSize: eventStats.totalEvents || 0,
+      lastEventTimestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Graph not loaded yet' });
+  }
+});
+
 // GET /api/feed/status — ingestion pipeline health
 router.get('/status', (req: Request, res: Response) => {
   const stats = getEventStoreStats();
   res.json({
     ingestionRunning: isIngestionRunning(),
+    kafkaConnected: isKafkaConnected(),
     eventStore: stats,
   });
 });
