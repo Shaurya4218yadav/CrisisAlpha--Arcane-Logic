@@ -181,12 +181,14 @@ const NodeMarker = memo(function NodeMarker({
   node,
   isSelected,
   isOrigin,
+  globalSelectedId,
   onClick,
   activeLayer,
 }: {
   node: GraphNode;
   isSelected: boolean;
   isOrigin: boolean;
+  globalSelectedId: string | null;
   onClick: (id: string) => void;
   activeLayer: ViewLayer;
 }) {
@@ -216,9 +218,9 @@ const NodeMarker = memo(function NodeMarker({
     }
     if (activeLayer === 'traffic') {
       // Use resilience score as proxy for traffic density
-      if (node.resilienceScore > 0.7) return '#a78bfa';
-      if (node.resilienceScore > 0.4) return '#6366f1';
-      return '#312e81';
+      if (node.resilienceScore > 0.7) return '#00F5D4';
+      if (node.resilienceScore > 0.4) return '#0ea5e9';
+      return '#0c4a6e';
     }
     return getRiskColor(node.riskScore);
   }, [node.riskScore, node.inventoryBuffer, node.resilienceScore, node.lat, activeLayer]);
@@ -256,7 +258,7 @@ const NodeMarker = memo(function NodeMarker({
         <meshBasicMaterial
           color={color}
           transparent
-          opacity={0.08}
+          opacity={globalSelectedId && !isSelected ? 0.02 : 0.08}
           depthWrite={false}
         />
       </mesh>
@@ -275,6 +277,8 @@ const NodeMarker = memo(function NodeMarker({
           emissiveIntensity={emissiveIntensity}
           roughness={0.2}
           metalness={0.6}
+          transparent={!!globalSelectedId}
+          opacity={globalSelectedId ? (isSelected ? 1 : 0.02) : 1}
         />
       </mesh>
 
@@ -391,6 +395,7 @@ const Nodes = memo(function Nodes({
           node={node}
           isSelected={node.id === selectedNodeId}
           isOrigin={node.id === originNodeId}
+          globalSelectedId={selectedNodeId}
           onClick={onSelect}
           activeLayer={activeLayer}
         />
@@ -440,11 +445,13 @@ const ArcEdge = memo(function ArcEdge({
   sourceNode,
   targetNode,
   activeLayer,
+  globalSelectedId,
 }: {
   edge: GraphEdge;
   sourceNode: GraphNode;
   targetNode: GraphNode;
   activeLayer: ViewLayer;
+  globalSelectedId: string | null;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const lineRef = useRef<any>(null);
@@ -479,7 +486,9 @@ const ArcEdge = memo(function ArcEdge({
   const isRisky = edge.status === 'risky' || edge.riskScore > 0.6;
 
   // Dynamic opacity and width
-  const opacity = isBroken ? 0.08 : isRisky ? style.opacity * 0.7 : style.opacity;
+  const isRelated = globalSelectedId === sourceNode.id || globalSelectedId === targetNode.id;
+  const dimMultiplier = globalSelectedId ? (isRelated ? 1 : 0.02) : 1;
+  const opacity = (isBroken ? 0.08 : isRisky ? style.opacity * 0.7 : style.opacity) * dimMultiplier;
   const lineWidth = isBroken ? 0.2 : hovered ? style.lineWidth * 2 : style.lineWidth;
 
   // Animated dash offset + flicker for broken routes
@@ -636,10 +645,12 @@ const Arcs = memo(function Arcs({
   edges,
   nodes,
   activeLayer,
+  globalSelectedId,
 }: {
   edges: GraphEdge[];
   nodes: GraphNode[];
   activeLayer: ViewLayer;
+  globalSelectedId: string | null;
 }) {
   const nodeMap = useMemo(
     () => new Map(nodes.map((n) => [n.id, n])),
@@ -659,6 +670,7 @@ const Arcs = memo(function Arcs({
             sourceNode={source}
             targetNode={target}
             activeLayer={activeLayer}
+            globalSelectedId={globalSelectedId}
           />
         );
       })}
@@ -672,7 +684,7 @@ function WeatherOverlay() {
     { lat: 25, lng: -75, radius: 0.25, color: '#ef4444', label: 'Hurricane' },
     { lat: 35, lng: 135, radius: 0.18, color: '#f59e0b', label: 'Typhoon' },
     { lat: -10, lng: 80, radius: 0.2, color: '#38bdf8', label: 'Monsoon' },
-    { lat: 50, lng: 10, radius: 0.15, color: '#a78bfa', label: 'Storm' },
+    { lat: 50, lng: 10, radius: 0.15, color: '#00F5D4', label: 'Storm' },
   ], []);
 
   return (
@@ -707,45 +719,10 @@ function WeatherOverlay() {
   );
 }
 
-// ── Auto-Rotate Controller ───────────────────────────────────
-function AutoRotate() {
-  const { camera } = useThree();
-  const lastInteraction = useRef(0);
-  const angleRef = useRef(0);
-
-  useEffect(() => {
-    lastInteraction.current = Date.now();
-    const handleInteraction = () => {
-      lastInteraction.current = Date.now();
-    };
-    window.addEventListener('pointerdown', handleInteraction);
-    window.addEventListener('wheel', handleInteraction);
-    return () => {
-      window.removeEventListener('pointerdown', handleInteraction);
-      window.removeEventListener('wheel', handleInteraction);
-    };
-  }, []);
-
-  useFrame((_, delta) => {
-    const idle = Date.now() - lastInteraction.current > 5000;
-    if (idle) {
-      angleRef.current += delta * 0.04;
-      const dist = camera.position.length();
-      camera.position.set(
-        Math.sin(angleRef.current) * dist,
-        camera.position.y,
-        Math.cos(angleRef.current) * dist
-      );
-      camera.lookAt(0, 0, 0);
-    }
-  });
-
-  return null;
-}
 
 // ── Scene Content ────────────────────────────────────────────
 function GlobeScene({ activeLayer }: { activeLayer: ViewLayer }) {
-  const { nodes, edges, selectedNodeId, setSelectedNodeId, config } =
+  const { nodes, edges, selectedNodeId, setSelectedNodeId, config, phase } =
     useScenarioStore();
 
   return (
@@ -776,7 +753,7 @@ function GlobeScene({ activeLayer }: { activeLayer: ViewLayer }) {
         onSelect={setSelectedNodeId}
         activeLayer={activeLayer}
       />
-      <Arcs edges={edges} nodes={nodes} activeLayer={activeLayer} />
+      <Arcs edges={edges} nodes={nodes} activeLayer={activeLayer} globalSelectedId={selectedNodeId} />
 
       {/* Live Fleet Tracking Layer */}
       <VehicleLayer />
@@ -790,8 +767,9 @@ function GlobeScene({ activeLayer }: { activeLayer: ViewLayer }) {
         dampingFactor={0.05}
         rotateSpeed={0.5}
         zoomSpeed={0.8}
+        autoRotate={phase === 'setup' && !selectedNodeId}
+        autoRotateSpeed={0.5}
       />
-      <AutoRotate />
     </>
   );
 }
@@ -810,111 +788,6 @@ export default function GlobeView({ activeLayer = 'risk' as ViewLayer }: { activ
       >
         <GlobeScene activeLayer={activeLayer} />
       </Canvas>
-
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-slate-900/80 backdrop-blur-xl border border-white/10 rounded-xl p-3 text-xs">
-        <div className="text-slate-400 font-semibold mb-2 uppercase tracking-wider text-[10px]">
-          {activeLayer === 'risk' && 'Risk Level'}
-          {activeLayer === 'weather' && 'Weather Zones'}
-          {activeLayer === 'traffic' && 'Traffic Density'}
-          {activeLayer === 'demand' && 'Demand Levels'}
-        </div>
-        <div className="space-y-1.5">
-          {activeLayer === 'risk' && [
-            { label: 'Safe', color: '#10b981', range: '0-30%' },
-            { label: 'Stressed', color: '#f59e0b', range: '30-60%' },
-            { label: 'Risky', color: '#f97316', range: '60-80%' },
-            { label: 'Critical', color: '#ef4444', range: '80-100%' },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: item.color, boxShadow: `0 0 8px ${item.color}66` }}
-              />
-              <span className="text-slate-300">{item.label}</span>
-              <span className="text-slate-500 ml-auto">{item.range}</span>
-            </div>
-          ))}
-          {activeLayer === 'weather' && [
-            { label: 'Hurricane', color: '#ef4444' },
-            { label: 'Typhoon', color: '#f59e0b' },
-            { label: 'Monsoon', color: '#38bdf8' },
-            { label: 'Storm', color: '#a78bfa' },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: item.color, boxShadow: `0 0 8px ${item.color}66` }}
-              />
-              <span className="text-slate-300">{item.label}</span>
-            </div>
-          ))}
-          {activeLayer === 'traffic' && [
-            { label: 'High density', color: '#a78bfa' },
-            { label: 'Medium', color: '#6366f1' },
-            { label: 'Low', color: '#312e81' },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: item.color, boxShadow: `0 0 8px ${item.color}66` }}
-              />
-              <span className="text-slate-300">{item.label}</span>
-            </div>
-          ))}
-          {activeLayer === 'demand' && [
-            { label: 'High demand', color: '#10b981' },
-            { label: 'Moderate', color: '#f59e0b' },
-            { label: 'Low/Critical', color: '#ef4444' },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: item.color, boxShadow: `0 0 8px ${item.color}66` }}
-              />
-              <span className="text-slate-300">{item.label}</span>
-            </div>
-          ))}
-        </div>
-        {/* Transport Routes Legend */}
-        <div className="border-t border-white/10 mt-2 pt-2">
-          <div className="text-slate-400 font-semibold mb-1.5 uppercase tracking-wider text-[10px]">
-            Transport Routes
-          </div>
-          <div className="space-y-1">
-            {([
-              { icon: '✈️', label: 'Air', color: '#38bdf8', style: 'dashed' },
-              { icon: '🚢', label: 'Sea', color: '#06b6d4', style: 'solid' },
-              { icon: '🚛', label: 'Road', color: '#a78bfa', style: 'dashed' },
-              { icon: '🚂', label: 'Rail', color: '#f59e0b', style: 'dotted' },
-            ] as const).map((item) => (
-              <div key={item.label} className="flex items-center gap-2">
-                <span className="text-xs">{item.icon}</span>
-                <div
-                  className="w-5 h-0"
-                  style={{ borderTop: `2px ${item.style} ${item.color}` }}
-                />
-                <span className="text-slate-400 text-[10px]">{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Selected node info */}
-      {selectedNodeId && phase === 'setup' && (
-        <div className="absolute top-4 left-4 bg-slate-900/80 backdrop-blur-xl border border-cyan-500/30 rounded-xl p-3 text-sm">
-          <div className="text-cyan-400 font-semibold text-xs uppercase tracking-wider mb-1">
-            Crisis Origin
-          </div>
-          <div className="text-white font-bold">
-            {nodes.find((n) => n.id === selectedNodeId)?.name || selectedNodeId}
-          </div>
-          <div className="text-slate-400 text-xs mt-0.5">
-            Click another node to change
-          </div>
-        </div>
-      )}
     </div>
   );
 }
