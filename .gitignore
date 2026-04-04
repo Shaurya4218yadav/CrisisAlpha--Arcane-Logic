@@ -63,3 +63,5 @@ ENV/
 *.egg-info/
 .installed.cfg
 *.egg
+data/
+

@@ -50,7 +50,7 @@ export function createSimulation(config: Partial<SimulationConfig>, userId: stri
     createdAt: new Date().toISOString(),
     hypothesis: config.hypothesis || {
       title: `Crisis at ${config.originNodeId || 'unknown'}`,
-      description: config.hypothesis?.description || 'Simulated crisis scenario',
+      description: 'Simulated crisis scenario',
       category: 'conflict',
       affectedHubIds: [config.originNodeId || ''],
       affectedCountries: [],
@@ -85,6 +85,7 @@ export function createSimulation(config: Partial<SimulationConfig>, userId: stri
 
   // Create shadow graph overlay
   createOverlay(id);
+
 
   console.log(`[Sim] ✅ Simulation ${id} created: "${fullConfig.hypothesis.title}" (${maxTicks} ticks)`);
   return session;

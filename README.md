@@ -1,6 +1,6 @@
-CrisisAlpha 
+## CrisisAlpha 
 
-**Interactive Crisis Simulation Engine for Risk, Resilience & Opportunity**
+**A crisis-aware supply chain simulation engine that predicts disruption points and recommends optimal survival + profit strategies in real time.**
 
 ---
 
@@ -73,12 +73,15 @@ Key Features
 
 **Frontend**
 
-* React
-* Mapbox / Leaflet
+* Next.js (React)
+* Three.js (React Three Fiber)
+* Tailwind CSS
 
 **Backend**
 
-* FastAPI (Python)
+* Node.js + Express
+* Socket.IO (for real-time simulation ticks)
+* TypeScript
 
 **Core Engine**
 
@@ -134,9 +137,52 @@ This ensures:
 
 ---
 
+# Setup & Testing
+
+CrisisAlpha is a full-stack application. Both the **Next.js frontend** and **Node.js backend** need to be running simultaneously to stream real-time simulation data over WebSockets to the 3D Globe.
+
+## 1. Environment Setup
+
+First, navigate to the `backend/` directory and configure the environment:
+```sh
+cd backend
+cp .env.example .env
+```
+*(Optional)* Add your `GEMINI_API_KEY` to the `.env` file to enable the predictive AI inference layer. If omitted, the system gracefully defaults to a deterministic heuristic engine.
+
+## 2. Running the Backend Engine
+
+The backend orchestrates the Base Reality event ingestion, the What-If overlay engine, and the causality filters.
+
+```sh
+cd backend
+npm install
+npm run dev
+```
+*The backend will boot up on `http://localhost:3001`.*
+
+## 3. Running the Frontend Dashboard
+
+The frontend serves the real-time Crisis Command Center dashboard. Open a new terminal window:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+*The application will boot up on `http://localhost:3000`.*
+
+## 4. QA & Testing Workflow
+
+1. Open your browser and navigate to `http://localhost:3000`.
+2. Generate your **User Context** by entering test company parameters in the initial pre-simulation dialog.
+3. Within the Control Panel, configure your crisis hypothesis (select Industry, severity parameters, or use a preset).
+4. Click **Start Simulation**.
+5. **Observe:** Watch the nodes pulse as risk propagates via live WebSockets. Review the AI Event Feed and impact projections.
+6. **Interact/React:** Click the Chat (💬) icon in the bottom right context menu and ask the engine for live routing recommendations based on current supply chain disruptions!
+
+---
+
 # Vision
 
 To transform crisis response from reactive analysis into interactive, simulation-driven decision intelligence.
-
----
- 

@@ -11,11 +11,13 @@ import EventFeed from '@/components/events/EventFeed';
 import DecisionPanel from '@/components/decisions/DecisionPanel';
 import IntelFeed from '@/components/panels/IntelFeed';
 import SimulationLogs from '@/components/panels/SimulationLogs';
+import FleetSearchPanel from '@/components/panels/FleetSearchPanel';
 
-type TabId = 'events' | 'decisions' | 'intel' | 'logs';
+type TabId = 'events' | 'decisions' | 'intel' | 'logs' | 'radar';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'events', label: 'Events', icon: '⚡' },
+  { id: 'radar', label: 'Radar', icon: '📡' },
   { id: 'decisions', label: 'Actions', icon: '🎯' },
   { id: 'intel', label: 'Intel', icon: '📡' },
   { id: 'logs', label: 'Logs', icon: '📋' },
@@ -57,6 +59,7 @@ export default function RightPanel() {
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden p-3">
         {activeTab === 'events' && <EventFeed />}
+        {activeTab === 'radar' && <FleetSearchPanel />}
         {activeTab === 'decisions' && <DecisionPanel />}
         {activeTab === 'intel' && <IntelFeed />}
         {activeTab === 'logs' && <SimulationLogs />}

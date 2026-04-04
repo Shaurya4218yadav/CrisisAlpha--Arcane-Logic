@@ -9,8 +9,8 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
-import { api } from '@/lib/api/client';
-import { getMockGraphData, getMockPresets } from '@/lib/mock/simulationData';
+import { useFleetStore } from '@/state/useFleetStore';
+import { api, connectTelematicsSocket } from '@/lib/api/client';
 import ControlPanel from '@/components/controls/ControlPanel';
 import RightPanel from '@/components/panels/RightPanel';
 import SummaryBar from '@/components/summary/SummaryBar';
@@ -46,14 +46,16 @@ export default function Home() {
         ]);
         setGraph(graphData.nodes, graphData.edges);
         setPresets(presetData.presets);
-        console.log('[INIT] Loaded data from backend');
-      } catch (err) {
-        console.warn('[INIT] Backend unavailable, loading mock data:', err);
-        // Fallback to mock data — app remains fully functional
-        const mockGraph = getMockGraphData();
-        const mockPresets = getMockPresets();
-        setGraph(mockGraph.nodes, mockGraph.edges);
-        setPresets(mockPresets.presets);
+        console.log('[INIT] 🌍 Base Reality loaded straight from Neo4j Backend:', graphData.nodes.length, 'nodes');
+        
+        // Connect to tracking server
+        connectTelematicsSocket((payload) => {
+           useFleetStore.getState().setVehicles(payload);
+        });
+
+      } catch (err: any) {
+        console.error('[INIT] ❌ Backend unavailable. Base Reality failed to load.', err);
+        setError(err.message || 'Failed to connect to backend.');
       } finally {
         setLoading(false);
       }
@@ -63,6 +65,10 @@ export default function Home() {
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  if (error) {
+    return <ErrorScreen message={error} />
   }
 
   return (

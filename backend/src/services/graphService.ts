@@ -10,6 +10,7 @@ import {
   PoliticalRelation, GraphState,
   getNodeStatusFromRisk, getEdgeStatusFromRisk, clamp,
 } from '../models/graph';
+import { runCypher } from './neo4jService';
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 
@@ -17,11 +18,8 @@ const DATA_DIR = path.join(__dirname, '..', 'data');
 
 let cachedBaseGraph: GraphState | null = null;
 
-export function loadGraph(): GraphState {
-  if (cachedBaseGraph) return cachedBaseGraph;
-
-  const hubsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_hubs.json'), 'utf-8'));
-  const routesRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'trade_routes.json'), 'utf-8'));
+export async function hydrateBaseGraphFromNeo4j(): Promise<void> {
+  // Read supplemental data not in Neo4j seed currently
   const chokepointsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'chokepoints.json'), 'utf-8'));
   const relationsRaw = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'political_relations.json'), 'utf-8'));
 
@@ -33,73 +31,76 @@ export function loadGraph(): GraphState {
   const regions = new Map<string, RegionNode>();
   const politicalRelations: PoliticalRelation[] = relationsRaw.relations || [];
 
-  // Load hubs
-  for (const h of hubsRaw.hubs) {
+  // Query Neo4j for Hub Nodes
+  const nodesRecs = await runCypher(`MATCH (n:TradeHub) RETURN n`);
+  for (const rec of nodesRecs) {
+    const props = rec.get('n').properties;
     const node: TradeHubNode = {
-      id: h.id,
-      name: h.name,
-      type: h.type,
-      lat: h.lat,
-      lng: h.lng,
-      countryId: h.countryId,
-      regionId: h.regionId,
-      annualThroughput: h.annualThroughput,
-      industryWeights: h.industryWeights || {},
-      gdpContribution: h.gdpContribution,
-      infrastructureQuality: h.infrastructureQuality,
-      alternativeRoutes: h.alternativeRoutes,
-      inventoryBufferDays: h.inventoryBufferDays,
-      resilienceScore: h.resilienceScore,
-      baseDemand: h.baseDemand,
-      baseSupply: h.baseSupply,
+      id: props.id,
+      name: props.name,
+      type: props.type,
+      lat: props.lat,
+      lng: props.lng,
+      countryId: props.countryId,
+      regionId: props.regionId,
+      annualThroughput: props.annualThroughput,
+      industryWeights: {}, // Retain schema
+      gdpContribution: props.gdpContribution,
+      infrastructureQuality: props.infrastructureQuality,
+      alternativeRoutes: props.alternativeRoutes || 0,
+      inventoryBufferDays: props.inventoryBufferDays,
+      resilienceScore: props.resilienceScore,
+      baseDemand: props.baseDemand,
+      baseSupply: props.baseSupply,
       currentRiskScore: 0,
-      currentStatus: 'operational',
+      currentStatus: props.currentStatus || 'operational',
       activeDisruptions: [],
     };
     nodes.set(node.id, node);
     adjacency.set(node.id, []);
 
-    // Auto-generate region entries
-    if (!regions.has(h.regionId)) {
-      regions.set(h.regionId, {
-        id: h.regionId,
-        name: h.regionId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
+    if (!regions.has(node.regionId)) {
+      regions.set(node.regionId, {
+        id: node.regionId,
+        name: node.regionId.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
         countries: [],
         primaryIndustries: [],
       });
     }
   }
 
-  // Load routes
-  for (const r of routesRaw.routes) {
+  // Query Neo4j for Route Edges
+  const routesRecs = await runCypher(`MATCH (s:TradeHub)-[r:ROUTE_TO]->(t:TradeHub) RETURN r, s.id, t.id`);
+  for (const rec of routesRecs) {
+    const props = rec.get('r').properties;
+    const sId = rec.get('s.id');
+    const tId = rec.get('t.id');
     const edge: TradeRouteEdge = {
-      id: r.id,
-      sourceHubId: r.sourceHubId,
-      targetHubId: r.targetHubId,
-      transportType: r.transportType,
-      capacity: r.capacity,
-      baseCostPerUnit: r.baseCostPerUnit,
-      baseTransitDays: r.baseTransitDays,
-      fuelSensitivity: r.fuelSensitivity,
-      policySensitivity: r.policySensitivity,
-      weatherSensitivity: r.weatherSensitivity,
-      geopoliticalSensitivity: r.geopoliticalSensitivity,
-      riskTransmissionWeight: r.riskTransmissionWeight,
-      passesThrough: r.passesThrough || [],
+      id: props.id,
+      sourceHubId: sId,
+      targetHubId: tId,
+      transportType: props.transportType,
+      capacity: props.capacity,
+      baseCostPerUnit: props.baseCostPerUnit,
+      baseTransitDays: props.baseTransitDays,
+      fuelSensitivity: props.fuelSensitivity,
+      policySensitivity: props.policySensitivity,
+      weatherSensitivity: props.weatherSensitivity,
+      geopoliticalSensitivity: props.geopoliticalSensitivity,
+      riskTransmissionWeight: props.riskTransmissionWeight,
+      passesThrough: props.passesThrough || [],
       currentRiskScore: 0,
-      currentStatus: 'operational',
-      currentCapacityPct: 1.0,
+      currentStatus: props.transitDelayDays ? 'stressed' : 'operational',
+      currentCapacityPct: props.fuelCostMultiplier || 1.0,
     };
     edges.set(edge.id, edge);
 
-    // Build adjacency (bidirectional)
-    const srcAdj = adjacency.get(edge.sourceHubId);
+    const srcAdj = adjacency.get(sId);
     if (srcAdj) srcAdj.push(edge.id);
-    const tgtAdj = adjacency.get(edge.targetHubId);
+    const tgtAdj = adjacency.get(tId);
     if (tgtAdj) tgtAdj.push(edge.id);
   }
 
-  // Load chokepoints
   for (const c of chokepointsRaw.chokepoints) {
     const cp: ChokepointNode = {
       id: c.id,
@@ -118,6 +119,43 @@ export function loadGraph(): GraphState {
   }
 
   cachedBaseGraph = { nodes, edges, adjacency, countries, chokepoints, regions, politicalRelations };
+  console.log('[GraphService] 🌲 Memory cache perfectly aligned with Neo4j Base Reality.');
+}
+
+// O(1) Dual-Write Memory Patching
+export function patchBaseGraphNode(nodeId: string, delta: any) {
+  if (!cachedBaseGraph) return;
+  const node = cachedBaseGraph.nodes.get(nodeId);
+  if (node) {
+    if (delta.capacityPct !== undefined) {
+       node.currentStatus = delta.status || node.currentStatus;
+       // We can visually translate dropping capacity to an active disruption state
+       if (delta.capacityPct < 1.0) {
+          node.currentRiskScore = Math.max(node.currentRiskScore, 1.0 - delta.capacityPct);
+       }
+    }
+  }
+}
+
+export function patchBaseGraphEdge(edgeId: string, delta: any) {
+  if (!cachedBaseGraph) return;
+  // If targeted directly or via passesThrough chokepoint ID:
+  for (const e of cachedBaseGraph.edges.values()) {
+      if (e.id === edgeId || e.passesThrough.includes(edgeId)) {
+        if (delta.transitDelayDays !== undefined) {
+           e.currentStatus = 'stressed';
+           // Increment risk proportionally for visualization
+           e.currentRiskScore = Math.min(1.0, e.currentRiskScore + 0.5);
+           e.currentCapacityPct = delta.fuelCostMultiplier || e.currentCapacityPct;
+        }
+      }
+  }
+}
+
+export function loadGraph(): GraphState {
+  if (!cachedBaseGraph) {
+     throw new Error("Base Graph absent! Await hydrateBaseGraphFromNeo4j() must complete during boot.");
+  }
   return cachedBaseGraph;
 }
 
