@@ -9,7 +9,8 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { motion } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
-import { api } from '@/lib/api/client';
+import { useFleetStore } from '@/state/useFleetStore';
+import { api, connectTelematicsSocket, connectRealitySocket } from '@/lib/api/client';
 import { getMockGraphData, getMockPresets } from '@/lib/mock/simulationData';
 import RightPanel from '@/components/panels/RightPanel';
 import MiniInfoCard from '@/components/panels/MiniInfoCard';
@@ -52,6 +53,12 @@ export default function Home() {
         connectTelematicsSocket((payload) => {
            useFleetStore.getState().setVehicles(payload);
         });
+
+        // Connect to Real-Time Base Reality Server
+        connectRealitySocket(
+          (event) => useScenarioStore.getState().addBaseRealityEvent(event),
+          (stats) => useScenarioStore.getState().updateLiveStats(stats)
+        );
 
       } catch (err: any) {
         console.error('[INIT] ❌ Backend unavailable. Base Reality failed to load.', err);

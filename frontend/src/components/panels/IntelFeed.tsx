@@ -5,9 +5,10 @@
 // Mock news/intelligence items during simulation
 // ============================================================
 
-import { useMemo } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
+import { SimulationEvent } from '@/types';
 
 interface IntelItem {
   id: string;
@@ -101,73 +102,144 @@ function generateIntel(
 }
 
 export default function IntelFeed() {
-  const { currentTick, config, nodes, phase } = useScenarioStore();
+  const { currentTick, config, nodes, phase, baseRealityEvents } = useScenarioStore();
+  const [activeTab, setActiveTab] = useState<'live' | 'sim'>('live');
+
   const nodesAtRisk = nodes.filter(
     (n) => n.status === 'risky' || n.status === 'broken'
   ).length;
 
-  const intel = useMemo(
+  const simIntel = useMemo(
     () => generateIntel(currentTick, config.industry, nodesAtRisk),
     [currentTick, config.industry, nodesAtRisk]
   );
 
-  if (phase === 'setup') {
-    return (
-      <div className="h-full flex flex-col">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center">
-            <div className="text-2xl mb-2">📡</div>
-            <div className="text-xs text-slate-500">
-              Intelligence reports will appear during simulation
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col">
-      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2">
-        {intel.map((item, i) => {
-          const colors = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.economic;
-          const icon = CATEGORY_ICONS[item.category] || '📡';
+      {/* Tabs */}
+      <div className="flex items-center border-b border-white/5 mb-2 shrink-0">
+        <button
+          onClick={() => setActiveTab('live')}
+          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+            activeTab === 'live'
+              ? 'text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-slate-500 hover:text-slate-400'
+          }`}
+        >
+          <div className="flex items-center justify-center gap-1.5">
+            <div className={`w-1.5 h-1.5 rounded-full ${activeTab === 'live' ? 'bg-cyan-400 animate-pulse' : 'bg-slate-500'}`} />
+            Live Reality
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('sim')}
+          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors ${
+            activeTab === 'sim'
+              ? 'text-cyan-400 border-b-2 border-cyan-400'
+              : 'text-slate-500 hover:text-slate-400'
+          }`}
+        >
+          Simulator
+        </button>
+      </div>
 
-          return (
+      <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2 pb-2">
+        <AnimatePresence mode="popLayout">
+          {activeTab === 'sim' && phase === 'setup' ? (
             <motion.div
-              key={item.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-3 transition-all"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-center py-6"
             >
-              <div className="flex items-start gap-2">
-                <span className="text-sm mt-0.5">{icon}</span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase">
-                      {item.source}
-                    </span>
-                    <span
-                      className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}
-                    >
-                      {item.category}
-                    </span>
-                  </div>
-                  <h4 className="text-xs font-semibold text-white leading-snug">
-                    {item.title}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">
-                    {item.summary}
-                  </p>
-                  <div className="text-[9px] text-slate-600 mt-1">
-                    {item.timestamp}
-                  </div>
-                </div>
+              <div className="text-2xl mb-2">📡</div>
+              <div className="text-xs text-slate-500">
+                Simulation inactive. Select a scenario to start forecasting.
               </div>
             </motion.div>
-          );
-        })}
+          ) : activeTab === 'sim' ? (
+            simIntel.map((item, i) => {
+              const colors = CATEGORY_COLORS[item.category] || CATEGORY_COLORS.economic;
+              const icon = CATEGORY_ICONS[item.category] || '📡';
+
+              return (
+                <motion.div
+                  key={item.id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-3 transition-all cursor-pointer"
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="text-sm mt-0.5">{icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase">{item.source}</span>
+                        <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}>{item.category}</span>
+                      </div>
+                      <h4 className="text-xs font-semibold text-white leading-snug">{item.title}</h4>
+                      <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{item.summary}</p>
+                      <div className="text-[9px] text-slate-600 mt-1">{item.timestamp}</div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })
+          ) : (
+            /* Live Tab */
+            baseRealityEvents.length === 0 ? (
+               <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="text-center py-6"
+              >
+                <div className="text-2xl mb-2 animate-pulse">🛰️</div>
+                <div className="text-xs text-slate-500">
+                  Listening for real-world anomalies...
+                </div>
+              </motion.div>
+            ) : (
+              baseRealityEvents.map((evt, i) => {
+                // Determine icon mapping safely
+                const mapType = evt.type === 'weather' ? 'weather' : evt.type === 'geopolitical' ? 'political' : 'logistics';
+                const colors = CATEGORY_COLORS[mapType] || CATEGORY_COLORS.logistics;
+                const icon = CATEGORY_ICONS[mapType] || '🚢';
+
+                return (
+                  <motion.div
+                    key={evt.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25, delay: i * 0.05 }}
+                    className="group bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] hover:border-white/[0.12] rounded-xl p-3 transition-all cursor-pointer relative overflow-hidden"
+                  >
+                     <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/0 via-cyan-500/5 to-cyan-500/0 -translate-x-[100%] group-hover:translate-x-[100%] transition-transform duration-1000" />
+                    <div className="flex items-start gap-2 relative z-10">
+                      <span className="text-sm mt-0.5">{icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold text-slate-500 uppercase">OSINT ALERT</span>
+                            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded ${colors.bg} ${colors.text}`}>{mapType}</span>
+                             {evt.severity === 'high' && (
+                                <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 animate-pulse`}>CRITICAL</span>
+                             )}
+                          </div>
+                          <span className="text-[9px] text-slate-600">{new Date(evt.timestamp || Date.now()).toLocaleTimeString()}</span>
+                        </div>
+                        <h4 className="text-xs font-semibold text-white leading-snug">{evt.title}</h4>
+                        <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{evt.message}</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })
+            )
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

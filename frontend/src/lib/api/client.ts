@@ -1,10 +1,8 @@
 // ============================================================
 // CrisisAlpha — API Client (v2)
 // HTTP + Socket.IO connections to backend v2
-// ============================================================
-
 import { io, Socket } from 'socket.io-client';
-import { ScenarioConfig, GraphNode, GraphEdge, TickPayload, SimulationComplete, Recommendation } from '@/types';
+import { ScenarioConfig, GraphNode, GraphEdge, TickPayload, SimulationComplete, Recommendation, SimulationEvent } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -35,6 +33,7 @@ function normalizeNode(raw: any): GraphNode {
     status: normalizeStatus(raw.status ?? raw.currentStatus ?? 'operational'),
     inventoryBuffer: raw.inventoryBuffer ?? normalizeBufferDays(raw.inventoryBufferDays ?? raw.inventoryBuffer ?? 14),
     resilienceScore: raw.resilienceScore ?? 0.5,
+    annualThroughputTEU: raw.annualThroughputTEU,
   };
 }
 
@@ -47,6 +46,8 @@ function normalizeEdge(raw: any): GraphEdge {
     riskScore: raw.riskScore ?? raw.currentRiskScore ?? 0,
     status: normalizeStatus(raw.status ?? raw.currentStatus ?? 'operational'),
     capacity: raw.capacity ?? raw.capacityPct ? Math.round((raw.capacityPct ?? 1) * 100) : raw.capacity ?? 100,
+    baseVolumeTEU: raw.baseVolumeTEU,
+    currentVolumeTEU: raw.currentVolumeTEU,
   };
 }
 
@@ -303,8 +304,54 @@ export function connectSocket(
   return socket;
 }
 
+let realitySocket: Socket | null = null;
+
+export function connectRealitySocket(
+  onEvent: (event: SimulationEvent) => void,
+  onStats: (stats: any) => void
+): Socket {
+  if (realitySocket) return realitySocket;
+
+  realitySocket = io(API_BASE, {
+    transports: ['websocket', 'polling'],
+  });
+
+  realitySocket.on('connect', () => {
+    console.log('[WS] 🌍 Connected to Base Reality Feed');
+    realitySocket?.emit('reality:subscribe');
+  });
+
+  realitySocket.on('reality:event', (raw: any) => {
+    onEvent({
+      id: raw.id,
+      tick: raw.tick ?? 0,
+      type: raw.type,
+      severity: raw.severity === 'critical' ? 'high' : raw.severity,
+      title: raw.title,
+      message: raw.message,
+      category: raw.category,
+      relatedNodeIds: raw.relatedNodeIds,
+      relatedEdgeIds: raw.relatedEdgeIds,
+      relatedChokepointIds: raw.relatedChokepointIds,
+      timestamp: raw.createdAt,
+    });
+  });
+
+  realitySocket.on('reality:stats', (stats: any) => {
+    onStats(stats);
+  });
+
+  return realitySocket;
+}
+
 export function disconnectSocket() {
   if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+  if (realitySocket) {
+    realitySocket.disconnect();
+    realitySocket = null;
   }
 }
 

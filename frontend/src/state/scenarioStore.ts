@@ -15,6 +15,7 @@ import {
   Preset,
   SimulationComplete,
   UserProfile,
+  LiveNetworkStats,
 } from '@/types';
 
 export type SimPhase = 'setup' | 'running' | 'paused' | 'completed';
@@ -43,6 +44,12 @@ interface ScenarioState {
   // Events
   events: SimulationEvent[];
   addEvents: (events: SimulationEvent[]) => void;
+  baseRealityEvents: SimulationEvent[];
+  addBaseRealityEvent: (event: SimulationEvent) => void;
+
+  // Live Stats
+  liveNetworkStats: LiveNetworkStats | null;
+  updateLiveStats: (stats: LiveNetworkStats) => void;
 
   // Recommendations
   recommendations: Recommendation[];
@@ -117,6 +124,13 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
   events: [],
   addEvents: (newEvents) =>
     set((state) => ({ events: [...state.events, ...newEvents] })),
+  
+  baseRealityEvents: [],
+  addBaseRealityEvent: (event) =>
+    set((state) => ({ baseRealityEvents: [event, ...state.baseRealityEvents].slice(0, 100) })),
+
+  liveNetworkStats: null,
+  updateLiveStats: (stats) => set({ liveNetworkStats: stats }),
 
   recommendations: [],
   score: { ...defaultScore },
@@ -173,6 +187,7 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       maxTicks: 14,
       dayLabel: 'Day 0',
       events: [],
+      baseRealityEvents: [],
       recommendations: [],
       score: { ...defaultScore },
       finalResult: null,

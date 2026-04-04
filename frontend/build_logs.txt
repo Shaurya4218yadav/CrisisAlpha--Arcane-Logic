@@ -1,0 +1,33 @@
+
+> frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.2.2 (Turbopack)
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/components/panels/RightPanel.tsx:162:1
+Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
+  [90m160 |[0m     </div>
+  [90m161 |[0m   );
+[31m[1m>[0m [90m162 |[0m }
+  [90m    |[0m [31m[1m^[0m
+  [90m163 |[0m
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Client Component Browser:
+    ./src/components/panels/RightPanel.tsx [Client Component Browser]
+    ./src/app/page.tsx [Client Component Browser]
+    ./src/app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./src/components/panels/RightPanel.tsx [Client Component SSR]
+    ./src/app/page.tsx [Client Component SSR]
+    ./src/app/page.tsx [Server Component]
+
+
+    at <unknown> (./src/components/panels/RightPanel.tsx:162:1)

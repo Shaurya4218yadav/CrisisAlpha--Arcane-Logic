@@ -225,7 +225,8 @@ const NodeMarker = memo(function NodeMarker({
     return getRiskColor(node.riskScore);
   }, [node.riskScore, node.inventoryBuffer, node.resilienceScore, node.lat, activeLayer]);
 
-  const baseSize = (NODE_TYPE_SIZE[node.type] || 8) / 200;
+  const throughputScale = node.annualThroughputTEU ? Math.max(0.5, Math.min(2.0, node.annualThroughputTEU / 10000000)) : 1;
+  const baseSize = ((NODE_TYPE_SIZE[node.type] || 8) / 200) * throughputScale;
   const size = isSelected ? baseSize * 1.8 : hovered ? baseSize * 1.4 : baseSize;
   const emissiveIntensity = getRiskEmissiveIntensity(node.riskScore);
 
@@ -485,11 +486,13 @@ const ArcEdge = memo(function ArcEdge({
   const isBroken = edge.status === 'broken';
   const isRisky = edge.status === 'risky' || edge.riskScore > 0.6;
 
-  // Dynamic opacity and width
+  // Dynamic opacity and volume-based arc width
   const isRelated = globalSelectedId === sourceNode.id || globalSelectedId === targetNode.id;
   const dimMultiplier = globalSelectedId ? (isRelated ? 1 : 0.02) : 1;
   const opacity = (isBroken ? 0.08 : isRisky ? style.opacity * 0.7 : style.opacity) * dimMultiplier;
-  const lineWidth = isBroken ? 0.2 : hovered ? style.lineWidth * 2 : style.lineWidth;
+  
+  const volMultiplier = edge.baseVolumeTEU ? Math.max(0.5, Math.min(4.0, edge.baseVolumeTEU / 15000)) : 1;
+  const lineWidth = isBroken ? 0.2 : hovered ? style.lineWidth * 2 * volMultiplier : style.lineWidth * volMultiplier;
 
   // Animated dash offset + flicker for broken routes
   useFrame(({ clock }) => {

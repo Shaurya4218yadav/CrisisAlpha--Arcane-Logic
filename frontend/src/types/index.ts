@@ -42,6 +42,7 @@ export interface GraphNode {
   status: NodeStatus;
   inventoryBuffer: number;
   resilienceScore: number;
+  annualThroughputTEU?: number;
 }
 
 export interface GraphEdge {
@@ -52,6 +53,8 @@ export interface GraphEdge {
   riskScore: number;
   status: NodeStatus;
   capacity: number;
+  baseVolumeTEU?: number;
+  currentVolumeTEU?: number;
 }
 
 export interface SimulationEvent {
@@ -163,4 +166,12 @@ export interface PersonalizedImpactReport {
   projections: ImpactProjection[];
   recommendations: string[];
   narrative: string;
+}
+
+export interface LiveNetworkStats {
+  totalDailyVolumeTEU: number;
+  activeDisruptions: number;
+  affectedHubs: number;
+  networkHealthPct: number;
+  lastEventTimestamp: string;
 }

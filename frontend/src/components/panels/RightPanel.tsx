@@ -14,8 +14,9 @@ import DecisionPanel from '@/components/decisions/DecisionPanel';
 import IntelFeed from '@/components/panels/IntelFeed';
 import SimulationLogs from '@/components/panels/SimulationLogs';
 import FleetSearchPanel from '@/components/panels/FleetSearchPanel';
+import { api, disconnectSocket } from '@/lib/api/client';
 
-type TabId = 'events' | 'decisions' | 'intel' | 'logs' | 'radar';
+type TabId = 'events' | 'decisions' | 'intel' | 'logs' | 'radar' | 'alerts';
 
 const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: 'events', label: 'Events', icon: '⚡' },
@@ -125,8 +126,11 @@ export default function RightPanel() {
                   className="absolute inset-x-3 inset-y-3 overflow-hidden"
                 >
                   {activeTab === 'events' && <EventFeed />}
+                  {activeTab === 'radar' && <FleetSearchPanel />}
                   {activeTab === 'decisions' && <DecisionPanel />}
                   {activeTab === 'alerts' && <IntelFeed />}
+                  {activeTab === 'intel' && <IntelFeed />}
+                  {activeTab === 'logs' && <SimulationLogs />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -149,13 +153,6 @@ export default function RightPanel() {
           <div className="w-2 h-2 rounded-full bg-[#ef4444] shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Critical</span>
         </div>
-      {/* Tab Content */}
-      <div className="flex-1 overflow-hidden p-3">
-        {activeTab === 'events' && <EventFeed />}
-        {activeTab === 'radar' && <FleetSearchPanel />}
-        {activeTab === 'decisions' && <DecisionPanel />}
-        {activeTab === 'intel' && <IntelFeed />}
-        {activeTab === 'logs' && <SimulationLogs />}
       </div>
     </div>
   );

@@ -9,17 +9,43 @@ import { motion } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
 
 export default function SummaryBar() {
-  const { score, currentTick, maxTicks, dayLabel, phase, events, nodes, edges } =
+  const { score, currentTick, maxTicks, dayLabel, phase, events, nodes, edges, liveNetworkStats } =
     useScenarioStore();
 
   const brokenNodes = nodes.filter((n) => n.status === 'broken').length;
   const riskyNodes = nodes.filter((n) => n.status === 'risky').length;
-  const brokenEdges = edges.filter((e) => e.status === 'broken').length;
 
-  const metrics = [
+  const metrics = phase === 'setup' && liveNetworkStats ? [
+    {
+      label: 'Network Health',
+      value: `${liveNetworkStats.networkHealthPct.toFixed(1)}%`,
+      color: liveNetworkStats.networkHealthPct > 90 ? '#10b981' : liveNetworkStats.networkHealthPct > 70 ? '#f59e0b' : '#ef4444',
+      icon: '🌐',
+    },
+    {
+      label: 'Live Disruptions',
+      value: `${liveNetworkStats.activeDisruptions}`,
+      color: liveNetworkStats.activeDisruptions > 5 ? '#ef4444' : liveNetworkStats.activeDisruptions > 0 ? '#f59e0b' : '#10b981',
+      icon: '⚡',
+    },
+    {
+      label: 'Affected Hubs',
+      value: `${liveNetworkStats.affectedHubs}`,
+      color: liveNetworkStats.affectedHubs > 3 ? '#ef4444' : liveNetworkStats.affectedHubs > 0 ? '#f59e0b' : '#10b981',
+      icon: '📍',
+    },
+    {
+      label: 'Daily Flow',
+      value: `${liveNetworkStats.totalDailyVolumeTEU.toLocaleString()} TEU`,
+      color: '#00F5D4',
+      icon: '🚢',
+    },
+  ] : phase === 'setup' ? [
+    { label: 'Initializing Link...', value: '—', color: '#64748b', icon: '📡' },
+  ] : [
     {
       label: 'Day',
-      value: phase === 'setup' ? '—' : `${currentTick}/${maxTicks}`,
+      value: `${currentTick}/${maxTicks}`,
       color: '#00F5D4',
       icon: '📅',
     },
