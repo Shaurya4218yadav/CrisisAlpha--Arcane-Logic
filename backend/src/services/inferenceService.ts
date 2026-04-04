@@ -12,14 +12,34 @@ import type { PersonalizedImpactReport, UserProfile } from '../models/user';
 import type { SimulationConfig } from '../models/simulation';
 import { getProfile, generateHeuristicImpactReport } from './userContextService';
 
+import { QdrantClient } from '@qdrant/js-client-rest';
+
 let genAI: any = null;
 let model: any = null;
 let isAvailable = false;
+export const qdrant = new QdrantClient({ host: 'localhost', port: 6333 });
 
 // ── Initialize ──────────────────────────────────────────────
 
 export async function initInference(): Promise<boolean> {
   const apiKey = process.env.GEMINI_API_KEY;
+  
+  // 1. Initialize Vector Database (Qdrant)
+  try {
+    const res = await qdrant.getCollections();
+    const exists = res.collections.find(c => c.name === 'historical_events');
+    if (!exists) {
+      await qdrant.createCollection('historical_events', {
+        vectors: { size: 768, distance: 'Cosine' }
+      });
+      console.log('[Inference] 📦 Qdrant "historical_events" collection created.');
+    }
+    console.log('[Inference] 🧠 Connected to Qdrant Vector Database successfully.');
+  } catch (err) {
+    console.error('[Inference] ❌ Failed to connect to Qdrant:', err);
+  }
+
+  // 2. Initialize LLM
   if (!apiKey) {
     console.log('[Inference] ⚠️  No GEMINI_API_KEY set — using heuristic fallback mode');
     return false;
@@ -178,5 +198,28 @@ export async function quickAnalysis(prompt: string): Promise<string> {
     return result.response.text();
   } catch (err) {
     return `AI analysis failed: ${(err as Error).message}`;
+  }
+}
+
+// ── What-If Overlay (Delta Graph Semantic Search) ───────────
+
+export async function querySimilarScenarios(scenarioDescription: string) {
+  if (!isAvailable) return [];
+  
+  try {
+    console.log('[Inference] 🧠 Embedding scenario for Qdrant Search...');
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const result = await embeddingModel.embedContent(scenarioDescription);
+    const vector = result.embedding.values;
+
+    const searchResult = await qdrant.search('historical_events', {
+      vector: vector,
+      limit: 3
+    });
+    
+    return searchResult;
+  } catch (err) {
+    console.error('[Inference] ❌ Qdrant semantic search failed:', err);
+    return [];
   }
 }

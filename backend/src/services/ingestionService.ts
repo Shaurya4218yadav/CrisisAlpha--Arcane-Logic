@@ -1,194 +1,74 @@
-// ============================================================
-// CrisisAlpha — Ingestion Service
-// Simulated live event feed for base reality
-// ============================================================
+import { Kafka } from 'kafkajs';
+import { updateNodeDisruption, updateEdgeConstriction } from './neo4jService';
+import { patchBaseGraphNode, patchBaseGraphEdge } from './graphService';
 
-import { v4 as uuid } from 'uuid';
-import type { WorldEvent, GraphMutation } from '../models/event';
-import { LIVE_EVENT_SCENARIOS } from '../models/event';
-import { appendEvent } from './eventStoreService';
-import { loadGraph } from './graphService';
-import { getNodeStatusFromRisk, clamp } from '../models/graph';
+const kafka = new Kafka({
+  clientId: 'crisisalpha-consumer',
+  brokers: ['localhost:9092']
+});
 
-let ingestionInterval: NodeJS.Timeout | null = null;
+const consumer = kafka.consumer({ groupId: 'base-reality-group' });
 let isRunning = false;
-const INGESTION_INTERVAL_MS = 30_000; // one event every ~30 seconds
-let eventCallbacks: Array<(event: WorldEvent) => void> = [];
 
-// ── Start / Stop ────────────────────────────────────────────
+let eventCallbacks: Array<(event: any) => void> = [];
 
-export function startIngestion(): void {
-  if (isRunning) return;
-  isRunning = true;
-
-  console.log('[Ingestion] 📡 Live event ingestion started');
-
-  ingestionInterval = setInterval(() => {
-    // Random chance to fire an event (60% probability per tick)
-    if (Math.random() < 0.6) {
-      const event = generateRandomEvent();
-      const appended = appendEvent(event);
-
-      // Apply mutations to base reality graph
-      applyMutationsToBaseReality(appended);
-
-      // Notify subscribers
-      for (const cb of eventCallbacks) {
-        cb(appended);
-      }
-
-      console.log(`[Ingestion] 🌍 ${appended.title} (${appended.severity})`);
-    }
-  }, INGESTION_INTERVAL_MS);
-}
-
-export function stopIngestion(): void {
-  if (!isRunning) return;
-  isRunning = false;
-
-  if (ingestionInterval) {
-    clearInterval(ingestionInterval);
-    ingestionInterval = null;
-  }
-  console.log('[Ingestion] ⏹️  Live event ingestion stopped');
-}
-
-export function isIngestionRunning(): boolean {
-  return isRunning;
-}
-
-// ── Subscribe to live events ────────────────────────────────
-
-export function onLiveEvent(callback: (event: WorldEvent) => void): () => void {
+export function onLiveEvent(callback: (event: any) => void): () => void {
   eventCallbacks.push(callback);
   return () => {
     eventCallbacks = eventCallbacks.filter(cb => cb !== callback);
   };
 }
 
-// ── Manual Event Injection ──────────────────────────────────
+export async function startIngestion() {
+  if (isRunning) return;
+  isRunning = true;
 
-export function injectEvent(
-  title: string,
-  summary: string,
-  category: WorldEvent['category'],
-  severity: WorldEvent['severity'],
-  affectedHubIds: string[],
-  affectedCountries: string[],
-  affectedChokepointIds: string[],
-  mutations: GraphMutation[]
-): WorldEvent {
-  const event: WorldEvent = {
-    id: `inj_${uuid().slice(0, 8)}`,
-    timestamp: new Date().toISOString(),
-    source: 'user',
-    category,
-    subcategory: 'manual_injection',
-    severity,
-    affectedCountries,
-    affectedHubIds,
-    affectedChokepointIds,
-    affectedRegionIds: [],
-    title,
-    summary,
-    graphMutations: mutations,
-    branchId: 'base',
-    isSynthetic: false,
-  };
+  console.log('[Ingestion] 📡 Connecting to Kafka broker...');
+  try {
+    await consumer.connect();
+    await consumer.subscribe({ topic: 'base-reality.disruptions', fromBeginning: false });
+    
+    console.log('[Ingestion] 🚀 Listening for Base Reality disruptions on Kafka...');
 
-  const appended = appendEvent(event);
-  applyMutationsToBaseReality(appended);
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        if (!message.value) return;
+        const event = JSON.parse(message.value.toString());
+        
+        console.log(`\n[Ingestion] 📥 Received Kafka Event: [${event.eventType}] targeting [${event.targetId}]`);
 
-  for (const cb of eventCallbacks) {
-    cb(appended);
+        try {
+          if (event.eventType === 'NODE_DISRUPTION') {
+            await updateNodeDisruption(event.targetId, event.delta);
+            patchBaseGraphNode(event.targetId, event.delta);
+            console.log(`[Ingestion] ✅ Neo4j Property Updated: Node capacity dropped to ${event.delta.capacityPct}.`);
+          } else if (event.eventType === 'ROUTE_CONSTRICTION') {
+            await updateEdgeConstriction(event.targetId, event.delta);
+            patchBaseGraphEdge(event.targetId, event.delta);
+            console.log(`[Ingestion] ✅ Neo4j Property Updated: Route transit delay increased by ${event.delta.transitDelayDays} days.`);
+          }
+
+          // Emit to WebSockets so frontend sees the Neo4j update
+          for (const cb of eventCallbacks) {
+            cb(event);
+          }
+        } catch (err) {
+          console.error('[Ingestion] ❌ Error updating Neo4j from Kafka:', err);
+        }
+      },
+    });
+  } catch (err) {
+    console.error('[Ingestion] ❌ Failed to connect Kafka consumer:', err);
   }
-
-  return appended;
 }
 
-// ── Random Event Generation ─────────────────────────────────
-
-function generateRandomEvent(): WorldEvent {
-  const scenario = LIVE_EVENT_SCENARIOS[Math.floor(Math.random() * LIVE_EVENT_SCENARIOS.length)];
-
-  // Vary severity slightly
-  const severities: WorldEvent['severity'][] = ['low', 'medium', 'high', 'critical'];
-  const baseSeverityIdx = severities.indexOf(scenario.severity);
-  const variation = Math.random() < 0.3 ? (Math.random() < 0.5 ? -1 : 1) : 0;
-  const newSeverityIdx = Math.max(0, Math.min(3, baseSeverityIdx + variation));
-
-  // Scale mutations by severity ratio
-  const severityScale = (newSeverityIdx + 1) / (baseSeverityIdx + 1);
-  const scaledMutations: GraphMutation[] = scenario.mutations.map(m => ({
-    ...m,
-    value: typeof m.value === 'number' ? Math.round(m.value * severityScale * 100) / 100 : m.value,
-  }));
-
-  return {
-    id: `live_${uuid().slice(0, 8)}`,
-    timestamp: new Date().toISOString(),
-    source: 'gdelt',
-    category: scenario.category,
-    subcategory: scenario.subcategory,
-    severity: severities[newSeverityIdx],
-    affectedCountries: scenario.affectedCountries,
-    affectedHubIds: scenario.affectedHubIds,
-    affectedChokepointIds: scenario.affectedChokepointIds,
-    affectedRegionIds: [],
-    title: scenario.title,
-    summary: scenario.summary,
-    graphMutations: scaledMutations,
-    branchId: 'base',
-    isSynthetic: false,
-  };
+export async function stopIngestion() {
+  if (!isRunning) return;
+  isRunning = false;
+  await consumer.disconnect();
+  console.log('[Ingestion] ⏹️ Kafka Consumer disconnected.');
 }
 
-// ── Apply Mutations to Base Reality ─────────────────────────
-
-function applyMutationsToBaseReality(event: WorldEvent): void {
-  const graph = loadGraph();
-
-  for (const mutation of event.graphMutations) {
-    if (mutation.targetType === 'node') {
-      const node = graph.nodes.get(mutation.targetId);
-      if (!node) continue;
-
-      if (mutation.property === 'currentRiskScore') {
-        if (mutation.operation === 'increment') {
-          node.currentRiskScore = clamp(node.currentRiskScore + (mutation.value as number));
-        } else if (mutation.operation === 'set') {
-          node.currentRiskScore = clamp(mutation.value as number);
-        } else if (mutation.operation === 'multiply') {
-          node.currentRiskScore = clamp(node.currentRiskScore * (mutation.value as number));
-        }
-        node.currentStatus = getNodeStatusFromRisk(node.currentRiskScore);
-      }
-    } else if (mutation.targetType === 'chokepoint') {
-      const cp = graph.chokepoints.get(mutation.targetId);
-      if (!cp) continue;
-
-      if (mutation.property === 'currentRiskScore') {
-        if (mutation.operation === 'increment') {
-          cp.currentRiskScore = clamp(cp.currentRiskScore + (mutation.value as number));
-        } else if (mutation.operation === 'set') {
-          cp.currentRiskScore = clamp(mutation.value as number);
-        }
-        cp.currentStatus = getNodeStatusFromRisk(cp.currentRiskScore);
-      }
-    }
-  }
-
-  // Natural decay toward stability for base reality
-  for (const [, node] of graph.nodes) {
-    if (node.currentRiskScore > 0) {
-      node.currentRiskScore = clamp(node.currentRiskScore * 0.98); // 2% decay per tick
-      node.currentStatus = getNodeStatusFromRisk(node.currentRiskScore);
-    }
-  }
-  for (const [, cp] of graph.chokepoints) {
-    if (cp.currentRiskScore > 0) {
-      cp.currentRiskScore = clamp(cp.currentRiskScore * 0.98);
-      cp.currentStatus = getNodeStatusFromRisk(cp.currentRiskScore);
-    }
-  }
+export function isIngestionRunning(): boolean {
+  return isRunning;
 }

@@ -19,9 +19,10 @@ import feedRoutes from './routes/feedRoutes';
 import chatRoutes from './routes/chatRoutes';
 
 // Services
-import { loadGraph } from './services/graphService';
+import { loadGraph, hydrateBaseGraphFromNeo4j } from './services/graphService';
 import { startIngestion, onLiveEvent } from './services/ingestionService';
 import { initInference } from './services/inferenceService';
+import { startTelematicsIngestion, onTelematicsFrame } from './services/telematicsService';
 
 const app = express();
 const httpServer = createServer(app);
@@ -92,14 +93,25 @@ io.on('connection', (socket) => {
     console.log(`[WS] 🌍 ${socket.id} subscribed to reality feed`);
   });
 
+  // Join telematics feed
+  socket.on('telematics:subscribe', () => {
+    socket.join('telematics');
+    console.log(`[WS] 🛰️ ${socket.id} subscribed to live traffic feed`);
+  });
+
   socket.on('disconnect', () => {
     console.log(`[WS] ❌ Client disconnected: ${socket.id}`);
   });
 });
 
-// Subscribe ingestion events to WebSocket reality room
+// Subscribe events to WebSocket reality room
 onLiveEvent((event) => {
   io.to('reality').emit('reality:event', event);
+});
+
+// Subscribe telematics frames
+onTelematicsFrame((frame) => {
+  io.to('telematics').emit('telematics:frame', frame);
 });
 
 // ── Startup ─────────────────────────────────────────────────
@@ -112,10 +124,11 @@ async function boot() {
   console.log('║          Three-Pillar Architecture            ║');
   console.log('╚══════════════════════════════════════════════╝\n');
 
-  // 1. Load graph
-  console.log('[Boot] 📊 Loading world graph...');
+  // 1. Load graph from Neo4j
+  console.log('[Boot] 📊 Hydrating base graph from Neo4j...');
+  await hydrateBaseGraphFromNeo4j();
   const graph = loadGraph();
-  console.log(`[Boot] ✅ Graph loaded: ${graph.nodes.size} hubs, ${graph.edges.size} routes, ${graph.chokepoints.size} chokepoints`);
+  console.log(`[Boot] ✅ Graph Cache loaded: ${graph.nodes.size} hubs, ${graph.edges.size} routes, ${graph.chokepoints.size} chokepoints`);
 
   // 2. Initialize AI inference
   console.log('[Boot] 🤖 Initializing AI inference...');
@@ -124,6 +137,9 @@ async function boot() {
   // 3. Start live event ingestion
   console.log('[Boot] 📡 Starting live event ingestion...');
   startIngestion();
+  
+  console.log('[Boot] 🛰️ Starting vehicle telematics...');
+  startTelematicsIngestion();
 
   // 4. Start server
   httpServer.listen(PORT, () => {

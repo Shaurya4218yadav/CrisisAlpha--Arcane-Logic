@@ -8,7 +8,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
 import { api, connectSocket, disconnectSocket } from '@/lib/api/client';
-import { runMockSimulation, getMockGraphData } from '@/lib/mock/simulationData';
 import { Industry, UserGoal, Preset } from '@/types';
 
 const INDUSTRIES: { value: Industry; label: string; icon: string }[] = [
@@ -24,8 +23,7 @@ const GOALS: { value: UserGoal; label: string; icon: string }[] = [
   { value: 'balanced', label: 'Balanced', icon: '⚖️' },
 ];
 
-// Track mock simulation stop function
-let mockSimStop: (() => void) | null = null;
+
 
 export default function ControlPanel() {
   const {
@@ -64,23 +62,10 @@ export default function ControlPanel() {
       // Start simulation
       await api.startScenario(result.session.id);
       console.log('[SIM] Backend simulation started');
-      setPhase('running');
-    } catch (err) {
-      console.warn('[SIM] Backend unavailable, using mock simulation:', err);
-
-      // Fallback: use mock data
-      const mockGraph = getMockGraphData();
-      setGraph(mockGraph.nodes, mockGraph.edges);
-      setScenarioId(`mock_${Date.now()}`);
-
-      // Run mock simulation with same tick interface
-      const sim = runMockSimulation(
-        config,
-        (payload) => processTick(payload),
-        (data) => setFinalResult(data)
-      );
-      mockSimStop = sim.stop;
-      setPhase('running');
+    } catch (err: any) {
+      console.error('[SIM] Backend simulation failed to start:', err);
+      alert(`Simulation Error: ${err.message}`);
+      setPhase('setup');
     }
   };
 
@@ -106,10 +91,6 @@ export default function ControlPanel() {
 
   const handleReset = () => {
     disconnectSocket();
-    if (mockSimStop) {
-      mockSimStop();
-      mockSimStop = null;
-    }
     reset();
   };
 

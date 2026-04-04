@@ -49,3 +49,5 @@ Thumbs.db
 backend/dist
 frontend/.next
 frontend/out
+data/
+
