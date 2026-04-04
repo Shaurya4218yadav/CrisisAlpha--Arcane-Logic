@@ -13,7 +13,7 @@ export type ViewLayer = 'risk' | 'weather' | 'traffic' | 'demand';
 const LAYERS: { id: ViewLayer; label: string; icon: string; color: string }[] = [
   { id: 'risk', label: 'Risk', icon: '🎯', color: '#ef4444' },
   { id: 'weather', label: 'Weather', icon: '🌦️', color: '#38bdf8' },
-  { id: 'traffic', label: 'Traffic', icon: '🚢', color: '#a78bfa' },
+  { id: 'traffic', label: 'Traffic', icon: '🚢', color: '#00F5D4' },
   { id: 'demand', label: 'Demand', icon: '📊', color: '#10b981' },
 ];
 

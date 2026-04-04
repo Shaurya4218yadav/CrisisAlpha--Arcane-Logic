@@ -17,9 +17,9 @@ export default function ResultsDashboard() {
     finalResult.label === 'Crisis Commander'
       ? '#10b981'
       : finalResult.label === 'Profit Maximizer'
-      ? '#38bdf8'
+      ? '#00F5D4'
       : finalResult.label === 'Operationally Resilient'
-      ? '#a78bfa'
+      ? '#00F5D4'
       : '#f59e0b';
 
   return (
@@ -124,10 +124,10 @@ export default function ResultsDashboard() {
 
           <motion.div 
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
-            className="bg-sky-500/5 border border-sky-500/20 rounded-2xl p-6 text-center shadow-[0_0_30px_rgba(56,189,248,0.1)]"
+            className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-6 text-center shadow-[0_0_30px_rgba(0,245,212,0.1)]"
           >
             <div className="text-4xl mb-3">💰</div>
-            <div className="text-3xl font-black text-sky-400 tabular-nums">${score.profitGained}M</div>
+            <div className="text-3xl font-black text-[#00F5D4] tabular-nums">${score.profitGained}M</div>
             <div className="text-xs text-slate-500 uppercase tracking-widest font-bold mt-2">Profit Impact</div>
             <p className="text-xs text-slate-400 mt-3">Estimated net profit impact from operational changes and routing.</p>
           </motion.div>

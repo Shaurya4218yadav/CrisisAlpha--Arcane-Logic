@@ -48,7 +48,7 @@ export default function ChatAssistant() {
       id: 'welcome',
       role: 'assistant',
       content:
-        "Hi, I can guide your simulation.",
+        'I can help analyze risks and routes.',
       timestamp: 0,
     },
   ]);
@@ -261,7 +261,7 @@ export default function ChatAssistant() {
             {/* Quick Actions */}
             {messages.length === 1 && !isLoading && (
               <div className="px-3 pb-2 flex gap-2 overflow-x-auto custom-scrollbar shrink-0">
-                {['Show risks', 'Best route'].map((action) => (
+                {['Show risks', 'Best route', 'What should I do'].map((action) => (
                   <button
                     key={action}
                     onClick={() => {

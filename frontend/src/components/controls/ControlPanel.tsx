@@ -107,7 +107,7 @@ export default function ControlPanel() {
       {/* Header */}
       <div className="text-center pb-2 border-b border-white/5">
         <h2 className="text-sm font-bold text-white uppercase tracking-widest">
-          Control Panel
+          Simulation Controls
         </h2>
       </div>
 

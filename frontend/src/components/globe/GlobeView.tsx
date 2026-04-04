@@ -217,9 +217,9 @@ const NodeMarker = memo(function NodeMarker({
     }
     if (activeLayer === 'traffic') {
       // Use resilience score as proxy for traffic density
-      if (node.resilienceScore > 0.7) return '#a78bfa';
-      if (node.resilienceScore > 0.4) return '#6366f1';
-      return '#312e81';
+      if (node.resilienceScore > 0.7) return '#00F5D4';
+      if (node.resilienceScore > 0.4) return '#0ea5e9';
+      return '#0c4a6e';
     }
     return getRiskColor(node.riskScore);
   }, [node.riskScore, node.inventoryBuffer, node.resilienceScore, node.lat, activeLayer]);
@@ -683,7 +683,7 @@ function WeatherOverlay() {
     { lat: 25, lng: -75, radius: 0.25, color: '#ef4444', label: 'Hurricane' },
     { lat: 35, lng: 135, radius: 0.18, color: '#f59e0b', label: 'Typhoon' },
     { lat: -10, lng: 80, radius: 0.2, color: '#38bdf8', label: 'Monsoon' },
-    { lat: 50, lng: 10, radius: 0.15, color: '#a78bfa', label: 'Storm' },
+    { lat: 50, lng: 10, radius: 0.15, color: '#00F5D4', label: 'Storm' },
   ], []);
 
   return (
