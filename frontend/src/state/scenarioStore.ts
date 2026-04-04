@@ -14,6 +14,7 @@ import {
   TickPayload,
   Preset,
   SimulationComplete,
+  UserProfile,
 } from '@/types';
 
 export type SimPhase = 'setup' | 'running' | 'paused' | 'completed';
@@ -62,6 +63,14 @@ interface ScenarioState {
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
 
+  // User profile
+  userProfile: UserProfile | null;
+  setUserProfile: (profile: UserProfile) => void;
+  
+  // AI SitRep
+  aiSitRep: string | null;
+  setAiSitRep: (report: string | null) => void;
+
   // Process tick
   processTick: (payload: TickPayload) => void;
 
@@ -77,6 +86,9 @@ const defaultConfig: ScenarioConfig = {
   policyRestriction: 0.5,
   durationDays: 14,
   userGoal: 'balanced',
+  riskSensitivity: 0.5,
+  propagationSpeed: 0.5,
+  demandVolatility: 0.3,
 };
 
 const defaultScore: ScoreSnapshot = {
@@ -139,6 +151,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       config: id ? { ...state.config, originNodeId: id } : state.config,
     })),
 
+  userProfile: null,
+  setUserProfile: (profile) => set({ userProfile: profile }),
+
   processTick: (payload) =>
     set((state) => ({
       currentTick: payload.tick,
@@ -150,6 +165,9 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       recommendations: payload.recommendations,
       score: payload.score,
     })),
+
+  aiSitRep: null,
+  setAiSitRep: (report) => set({ aiSitRep: report }),
 
   reset: () =>
     set({
@@ -166,5 +184,6 @@ export const useScenarioStore = create<ScenarioState>((set, get) => ({
       score: { ...defaultScore },
       finalResult: null,
       selectedNodeId: null,
+      aiSitRep: null,
     }),
 }));

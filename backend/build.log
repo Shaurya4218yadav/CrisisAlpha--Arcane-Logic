@@ -1,0 +1,10 @@
+
+> crisisalpha-backend@1.0.0 build
+> tsc
+
+src/routes/scenarioRoutes.ts(10,3): error TS2305: Module '"../services/simulationService"' has no exported member 'createScenario'.
+src/routes/scenarioRoutes.ts(15,3): error TS2724: '"../services/simulationService"' has no exported member named 'applyDecision'. Did you mean 'applyUserDecision'?
+src/routes/scenarioRoutes.ts(16,3): error TS2305: Module '"../services/simulationService"' has no exported member 'getScenarioState'.
+src/routes/scenarioRoutes.ts(17,3): error TS2305: Module '"../services/simulationService"' has no exported member 'getScenarioSummary'.
+src/routes/scenarioRoutes.ts(122,19): error TS2554: Expected 2 arguments, but got 1.
+src/services/simulationService.ts(53,39): error TS2339: Property 'description' does not exist on type 'never'.

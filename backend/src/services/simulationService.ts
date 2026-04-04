@@ -1,257 +1,330 @@
 // ============================================================
-// CrisisAlpha — Simulation Service
-// Orchestrates the tick loop, streams state to clients
+// CrisisAlpha — Simulation Service (v2)
+// Full lifecycle orchestrator: Create → Initialize → Run → Complete
 // ============================================================
 
-import { Server as SocketServer, Socket } from 'socket.io';
 import { v4 as uuid } from 'uuid';
-import { GraphState } from '../models/graph';
-import { ScenarioConfig, ScenarioSession, TickPayload, Decision, Recommendation } from '../models/scenario';
-import { SimulationEvent } from '../models/event';
-import { loadGraph, cloneGraphState, serializeNodes, serializeEdges } from './graphService';
-import { applyInitialShock, propagateTick, applyDecisionEffect } from './propagationEngine';
-import { detectEvents, initEventTracker, clearEventTracker } from './eventService';
+import type { Server } from 'socket.io';
+import type { GraphState } from '../models/graph';
+import type {
+  SimulationConfig, SimulationSession, Decision,
+  TickPayload, Recommendation, ScoreSnapshot,
+} from '../models/simulation';
+import type { SimulationEvent } from '../models/event';
+import { loadGraph, cloneGraphState, serializeNodes, serializeEdges, serializeChokepoints } from './graphService';
+import { createOverlay, deleteOverlay, getMergedGraph, writeBackToOverlay } from './shadowGraphService';
+import { appendEvent, createSyntheticEvent } from './eventStoreService';
+import { propagateTick, applyDecision } from './propagationEngine';
+import { detectEvents, clearTracker } from './eventService';
 import { generateRecommendations } from './recommendationService';
-import { computeScore, getFinalLabel } from './scoreService';
+import { calculateScore } from './scoreService';
+import { generateImpactReport } from './inferenceService';
+import { getProfile } from './userContextService';
+import * as fs from 'fs';
+import * as path from 'path';
 
-// In-memory store for active sessions
-const sessions = new Map<string, {
-  session: ScenarioSession;
-  graph: GraphState;
-  baseGraph: GraphState;
-  tickInterval: ReturnType<typeof setInterval> | null;
-  allEvents: SimulationEvent[];
-  allRecommendations: Recommendation[];
-}>();
+// ── Session Store ───────────────────────────────────────────
 
-export function createScenario(config: ScenarioConfig): ScenarioSession {
-  const baseGraph = loadGraph();
-  const graph = cloneGraphState(baseGraph);
+const sessions = new Map<string, SimulationSession>();
+const sessionIntervals = new Map<string, NodeJS.Timeout>();
+const sessionGraphs = new Map<string, GraphState>(); // merged working graph per session
 
-  const session: ScenarioSession = {
-    id: `scn_${uuid().slice(0, 8)}`,
-    config,
+// Industry weights cache
+let industriesData: Record<string, any> | null = null;
+function getIndustryWeights(industry: string): Record<string, number> {
+  if (!industriesData) {
+    const filePath = path.join(__dirname, '..', 'data', 'industries.json');
+    industriesData = JSON.parse(fs.readFileSync(filePath, 'utf-8')).industries;
+  }
+  return industriesData![industry] || {};
+}
+
+// ── Create Simulation ───────────────────────────────────────
+
+export function createSimulation(config: Partial<SimulationConfig>, userId: string = 'anonymous'): SimulationSession {
+  const id = `sim_${uuid().slice(0, 8)}`;
+
+  const fullConfig: SimulationConfig = {
+    id,
+    userId,
+    createdAt: new Date().toISOString(),
+    hypothesis: config.hypothesis || {
+      title: `Crisis at ${config.originNodeId || 'unknown'}`,
+      description: (config.hypothesis as any)?.description || 'Simulated crisis scenario',
+      category: 'conflict',
+      affectedHubIds: [config.originNodeId || ''],
+      affectedCountries: [],
+      affectedChokepoints: [],
+      initialMutations: [],
+    },
+    axioms: config.axioms || [],
+    originNodeId: config.originNodeId || 'suez',
+    industry: config.industry || 'consumer_goods',
+    conflictIntensity: config.conflictIntensity ?? 0.5,
+    fuelShortage: config.fuelShortage ?? 0.3,
+    policyRestriction: config.policyRestriction ?? 0.3,
+    durationDays: config.durationDays || 14,
+    tickIntervalHours: config.tickIntervalHours || 24,
+    forkTimestamp: config.forkTimestamp || new Date().toISOString(),
+  };
+
+  const ticksPerDay = 24 / fullConfig.tickIntervalHours;
+  const maxTicks = Math.round(fullConfig.durationDays * ticksPerDay);
+
+  const session: SimulationSession = {
+    id,
+    config: fullConfig,
     currentTick: 0,
-    maxTicks: config.durationDays,
+    maxTicks,
     status: 'created',
     createdAt: Date.now(),
     decisions: [],
   };
 
-  // Apply initial shock
-  applyInitialShock(graph, config);
-  initEventTracker(session.id);
+  sessions.set(id, session);
 
-  sessions.set(session.id, {
-    session,
-    graph,
-    baseGraph,
-    tickInterval: null,
-    allEvents: [],
-    allRecommendations: [],
-  });
+  // Create shadow graph overlay
+  createOverlay(id);
 
+  console.log(`[Sim] ✅ Simulation ${id} created: "${fullConfig.hypothesis.title}" (${maxTicks} ticks)`);
   return session;
 }
 
-export function startSimulation(scenarioId: string, io: SocketServer): boolean {
-  const data = sessions.get(scenarioId);
-  if (!data) return false;
+// ── Start Simulation ────────────────────────────────────────
 
-  data.session.status = 'running';
+export function startSimulation(simulationId: string, io: Server): boolean {
+  const session = sessions.get(simulationId);
+  if (!session || session.status === 'running') return false;
 
-  // Run tick loop with interval
-  const TICK_INTERVAL_MS = 1500; // 1.5 sec per tick for smooth visual updates
+  session.status = 'running';
 
-  data.tickInterval = setInterval(() => {
-    if (data.session.status !== 'running') return;
+  // Initialize working graph (clone base + apply overlay)
+  const baseGraph = loadGraph();
+  const workingGraph = getMergedGraph(simulationId, baseGraph);
+  sessionGraphs.set(simulationId, workingGraph);
 
-    data.session.currentTick++;
-    const tick = data.session.currentTick;
+  console.log(`[Sim] ▶️  Simulation ${simulationId} started`);
 
-    // 1. Propagate risk
-    propagateTick(data.graph, data.session.config, tick);
-
-    // 2. Detect events
-    const events = detectEvents(data.graph, data.session.config, tick, scenarioId);
-    data.allEvents.push(...events);
-
-    // 3. Generate recommendations
-    const recommendations = generateRecommendations(data.graph, data.session.config, tick);
-    data.allRecommendations = recommendations;
-
-    // 4. Compute score
-    const score = computeScore(data.graph, data.session.config, data.session.decisions, tick, data.session.maxTicks);
-
-    // 5. Check completion
-    const isComplete = tick >= data.session.maxTicks;
-
-    // 6. Build tick payload
-    const payload: TickPayload = {
-      scenarioId,
-      tick,
-      dayLabel: `Day ${tick}`,
-      nodes: serializeNodes(data.graph) as any,
-      edges: serializeEdges(data.graph) as any,
-      events,
-      recommendations,
-      score,
-      isComplete,
-    };
-
-    // 7. Stream to clients
-    io.to(scenarioId).emit('tick', payload);
-
-    // 8. End simulation if complete
-    if (isComplete) {
-      data.session.status = 'completed';
-      if (data.tickInterval) {
-        clearInterval(data.tickInterval);
-        data.tickInterval = null;
-      }
-      const finalLabel = getFinalLabel(score, data.session.config);
-      io.to(scenarioId).emit('simulation_complete', {
-        scenarioId,
-        finalScore: score,
-        label: finalLabel,
-        totalEvents: data.allEvents.length,
-        totalDecisions: data.session.decisions.length,
-      });
+  const interval = setInterval(async () => {
+    const s = sessions.get(simulationId);
+    if (!s || s.status !== 'running') {
+      clearInterval(interval);
+      sessionIntervals.delete(simulationId);
+      return;
     }
-  }, TICK_INTERVAL_MS);
 
+    const graph = sessionGraphs.get(simulationId);
+    if (!graph) return;
+
+    // Run tick
+    const tickPayload = executeTick(s, graph, io);
+
+    // Emit via WebSocket
+    io.to(simulationId).emit('sim:tick', tickPayload);
+
+    // Emit events individually
+    for (const event of tickPayload.events) {
+      io.to(simulationId).emit('sim:event', event);
+    }
+
+    // Emit recommendations
+    for (const rec of tickPayload.recommendations) {
+      io.to(simulationId).emit('sim:recommendation', rec);
+    }
+
+    // Generate AI impact report every 5 ticks
+    if (s.currentTick % 5 === 0 && s.config.userId !== 'anonymous') {
+      const report = await generateImpactReport(
+        s.config.userId,
+        simulationId,
+        s.config,
+        graph
+      );
+      if (report) {
+        io.to(simulationId).emit('sim:impact', report);
+      }
+    }
+
+    // Check completion
+    if (s.currentTick >= s.maxTicks) {
+      s.status = 'completed';
+      clearInterval(interval);
+      sessionIntervals.delete(simulationId);
+
+      io.to(simulationId).emit('sim:complete', {
+        simulationId,
+        finalScore: tickPayload.score,
+        totalTicks: s.currentTick,
+        decisionsApplied: s.decisions.length,
+      });
+
+      console.log(`[Sim] ✅ Simulation ${simulationId} completed`);
+    }
+  }, 1500); // 1.5 second tick interval
+
+  sessionIntervals.set(simulationId, interval);
   return true;
 }
 
-export function pauseSimulation(scenarioId: string): boolean {
-  const data = sessions.get(scenarioId);
-  if (!data) return false;
-  data.session.status = 'paused';
-  return true;
-}
+// ── Execute Single Tick ─────────────────────────────────────
 
-export function resumeSimulation(scenarioId: string): boolean {
-  const data = sessions.get(scenarioId);
-  if (!data) return false;
-  data.session.status = 'running';
-  return true;
-}
+function executeTick(session: SimulationSession, graph: GraphState, io: Server): TickPayload {
+  const config = session.config;
+  const industryWeights = getIndustryWeights(config.industry);
 
-export function resetSimulation(scenarioId: string): boolean {
-  const data = sessions.get(scenarioId);
-  if (!data) return false;
+  // 1. Propagate risk
+  propagateTick(graph, config, session.currentTick, industryWeights);
 
-  if (data.tickInterval) {
-    clearInterval(data.tickInterval);
-    data.tickInterval = null;
+  // 2. Detect events
+  const events = detectEvents(graph, session.id, session.currentTick);
+
+  // 3. Log simulation events to event store
+  for (const event of events) {
+    createSyntheticEvent(
+      session.id,
+      event.title,
+      event.message,
+      event.category || 'infrastructure',
+      event.severity,
+      event.relatedNodeIds || [],
+      [],
+      event.relatedChokepointIds || [],
+      []
+    );
   }
 
-  // Reset graph to base state + initial shock
-  data.graph = cloneGraphState(data.baseGraph);
-  applyInitialShock(data.graph, data.session.config);
-  clearEventTracker(scenarioId);
-  initEventTracker(scenarioId);
+  // 4. Generate recommendations
+  const recommendations = generateRecommendations(graph, config, session.currentTick);
 
-  data.session.currentTick = 0;
-  data.session.status = 'created';
-  data.session.decisions = [];
-  data.allEvents = [];
-  data.allRecommendations = [];
+  // 5. Calculate score
+  const score = calculateScore(graph, config, session.decisions, session.currentTick);
 
-  return true;
+  // 6. Write back changes to shadow overlay
+  const baseGraph = loadGraph();
+  writeBackToOverlay(session.id, graph, baseGraph);
+
+  // 7. Build tick payload
+  const dayNumber = Math.floor(session.currentTick * (config.tickIntervalHours / 24)) + 1;
+  const payload: TickPayload = {
+    simulationId: session.id,
+    tick: session.currentTick,
+    dayLabel: `Day ${dayNumber}`,
+    nodes: serializeNodes(graph) as any,
+    edges: serializeEdges(graph) as any,
+    chokepoints: serializeChokepoints(graph) as any,
+    events,
+    recommendations,
+    score,
+    isComplete: session.currentTick >= session.maxTicks,
+  };
+
+  session.currentTick++;
+  return payload;
 }
 
-export function applyDecision(
-  scenarioId: string,
-  recommendationId: string
-): boolean {
-  const data = sessions.get(scenarioId);
-  if (!data) return false;
+// ── Apply Decision ──────────────────────────────────────────
 
-  // Find the recommendation
-  const rec = data.allRecommendations.find(r => r.id === recommendationId);
-  if (!rec) return false;
+export function applyUserDecision(
+  simulationId: string,
+  decisionType: string,
+  recommendationId: string,
+  relatedNodeIds: string[] = [],
+  relatedEdgeIds: string[] = []
+): Decision | null {
+  const session = sessions.get(simulationId);
+  if (!session || session.status !== 'running') return null;
 
-  // Create decision record
+  const graph = sessionGraphs.get(simulationId);
+  if (!graph) return null;
+
   const decision: Decision = {
     id: `dec_${uuid().slice(0, 8)}`,
-    tick: data.session.currentTick,
-    type: rec.type,
+    tick: session.currentTick,
+    type: decisionType as any,
     recommendationId,
     appliedAt: Date.now(),
   };
-  data.session.decisions.push(decision);
 
-  // Apply effect to graph
-  applyDecisionEffect(data.graph, rec.type, rec.relatedNodeIds, rec.relatedEdgeIds);
+  session.decisions.push(decision);
 
+  // Apply decision to working graph
+  applyDecision(graph, decisionType, relatedNodeIds, relatedEdgeIds);
+
+  console.log(`[Sim] 🎯 Decision applied: ${decisionType} on ${simulationId}`);
+  return decision;
+}
+
+// ── Pause / Resume / Reset ──────────────────────────────────
+
+export function pauseSimulation(simulationId: string): boolean {
+  const session = sessions.get(simulationId);
+  if (!session || session.status !== 'running') return false;
+
+  session.status = 'paused';
+  const interval = sessionIntervals.get(simulationId);
+  if (interval) {
+    clearInterval(interval);
+    sessionIntervals.delete(simulationId);
+  }
+  console.log(`[Sim] ⏸️  Simulation ${simulationId} paused`);
   return true;
 }
 
-export function getScenarioState(scenarioId: string) {
-  const data = sessions.get(scenarioId);
-  if (!data) return null;
+export function resumeSimulation(simulationId: string, io: Server): boolean {
+  const session = sessions.get(simulationId);
+  if (!session || session.status !== 'paused') return false;
 
-  return {
-    session: {
-      ...data.session,
-    },
-    nodes: serializeNodes(data.graph),
-    edges: serializeEdges(data.graph),
-    events: data.allEvents,
-    recommendations: data.allRecommendations,
-    score: computeScore(
-      data.graph,
-      data.session.config,
-      data.session.decisions,
-      data.session.currentTick,
-      data.session.maxTicks
-    ),
-  };
+  return startSimulation(simulationId, io);
 }
 
-export function getScenarioSummary(scenarioId: string) {
-  const data = sessions.get(scenarioId);
-  if (!data) return null;
+export function resetSimulation(simulationId: string): boolean {
+  const session = sessions.get(simulationId);
+  if (!session) return false;
 
-  const score = computeScore(
-    data.graph,
-    data.session.config,
-    data.session.decisions,
-    data.session.currentTick,
-    data.session.maxTicks
-  );
+  // Clear interval
+  const interval = sessionIntervals.get(simulationId);
+  if (interval) {
+    clearInterval(interval);
+    sessionIntervals.delete(simulationId);
+  }
 
-  return {
-    scenarioId,
-    config: data.session.config,
-    finalScore: score,
-    label: getFinalLabel(score, data.session.config),
-    totalTicks: data.session.currentTick,
-    maxTicks: data.session.maxTicks,
-    totalEvents: data.allEvents.length,
-    totalDecisions: data.session.decisions.length,
-    status: data.session.status,
-  };
+  // Reset state
+  session.currentTick = 0;
+  session.status = 'created';
+  session.decisions = [];
+
+  // Reset shadow graph
+  deleteOverlay(simulationId);
+  createOverlay(simulationId);
+
+  // Reset working graph
+  sessionGraphs.delete(simulationId);
+
+  // Clear event tracker
+  clearTracker(simulationId);
+
+  console.log(`[Sim] 🔄 Simulation ${simulationId} reset`);
+  return true;
 }
 
-export function setupSocketHandlers(io: SocketServer): void {
-  io.on('connection', (socket: Socket) => {
-    console.log(`[WS] Client connected: ${socket.id}`);
+// ── Query ───────────────────────────────────────────────────
 
-    socket.on('join_scenario', (scenarioId: string) => {
-      socket.join(scenarioId);
-      console.log(`[WS] Client ${socket.id} joined scenario ${scenarioId}`);
+export function getSession(simulationId: string): SimulationSession | null {
+  return sessions.get(simulationId) || null;
+}
 
-      // Send current state
-      const state = getScenarioState(scenarioId);
-      if (state) {
-        socket.emit('scenario_state', state);
-      }
-    });
+export function getSessionGraph(simulationId: string): GraphState | null {
+  return sessionGraphs.get(simulationId) || null;
+}
 
-    socket.on('disconnect', () => {
-      console.log(`[WS] Client disconnected: ${socket.id}`);
-    });
-  });
+export function getAllSessions(): SimulationSession[] {
+  return Array.from(sessions.values());
+}
+
+export function deleteSimulation(simulationId: string): boolean {
+  pauseSimulation(simulationId);
+  deleteOverlay(simulationId);
+  sessionGraphs.delete(simulationId);
+  clearTracker(simulationId);
+  return sessions.delete(simulationId);
 }

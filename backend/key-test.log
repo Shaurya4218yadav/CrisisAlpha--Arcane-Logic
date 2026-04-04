@@ -1,0 +1,11 @@
+[Storm Glass] Status: 403 | Data: {"errors":{"key":"API key is invalid"}}
+
+[OpenMeteo] Status: 400 | Data: {"error":true,"reason":"The supplied API key is invalid."}
+[GNews] Status: 400 | Data: {"errors":["You did not provide an API key."]}
+[Currents] Status: 401 | Data: {"status":"401","msg":"Invalid token"}
+[NewsData] Status: 401 | Data: {"status":"error","results":{"message":"The provided API key is not valid.","code":"Unauthorized"}}
+
+[Mediastack] Status: 401 | Data: {
+  "error": {
+    "code": "invalid_access_key",
+    "message": "You have not supplied a valid API A

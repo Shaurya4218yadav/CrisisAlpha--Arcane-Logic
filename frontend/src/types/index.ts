@@ -1,8 +1,9 @@
 // ============================================================
 // CrisisAlpha — TypeScript Types (shared frontend types)
+// v2 — aligned with backend v2 API surface
 // ============================================================
 
-export type Industry = 'automotive' | 'energy' | 'pharma' | 'consumer_goods';
+export type Industry = 'automotive' | 'energy' | 'pharma' | 'consumer_goods' | 'semiconductors' | 'agriculture';
 export type UserGoal = 'resilience' | 'profit' | 'balanced';
 export type NodeStatus = 'safe' | 'stressed' | 'risky' | 'broken';
 export type TransportType = 'sea' | 'road' | 'rail' | 'air';
@@ -15,6 +16,18 @@ export interface ScenarioConfig {
   policyRestriction: number;
   durationDays: number;
   userGoal: UserGoal;
+  // Advanced parameters
+  riskSensitivity: number;
+  propagationSpeed: number;
+  demandVolatility: number;
+}
+
+export interface UserProfile {
+  name: string;
+  businessType: string;
+  industry: string;
+  regions: string[];
+  product: string;
 }
 
 export interface GraphNode {
@@ -48,22 +61,29 @@ export interface SimulationEvent {
   severity: 'low' | 'medium' | 'high';
   title: string;
   message: string;
+  category?: string;
   relatedNodeIds?: string[];
   relatedEdgeIds?: string[];
+  relatedChokepointIds?: string[];
+  timestamp?: string;
 }
 
 export interface Recommendation {
   id: string;
-  type: 'reroute' | 'inventory_shift' | 'pricing';
+  type: 'reroute' | 'inventory_shift' | 'pricing' | 'activate_backup' | 'hedge';
   title: string;
   description: string;
+  urgency?: 'immediate' | 'soon' | 'monitor';
+  timeHorizon?: string;
   impact: {
     riskReduction: number;
     costIncrease: number;
     profitGain: number;
+    delayReduction?: number;
   };
   relatedNodeIds: string[];
   relatedEdgeIds: string[];
+  relatedAttachmentIds?: string[];
 }
 
 export interface ScoreSnapshot {
@@ -73,6 +93,8 @@ export interface ScoreSnapshot {
   demandServed: number;
   routeFailures: number;
   overallScore: number;
+  chokePointsAffected?: number;
+  projectedImpactDays?: number;
 }
 
 export interface TickPayload {
@@ -106,4 +128,39 @@ export interface SimulationComplete {
   label: string;
   totalEvents: number;
   totalDecisions: number;
+}
+
+// ── Chokepoint (new in v2) ────────────────────────────────────
+
+export interface Chokepoint {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  region: string;
+  type: string;
+  throughputPct: number;
+  riskScore: number;
+  status: string;
+  alternatives: string[];
+  vulnerabilities: string[];
+}
+
+// ── Impact Report (new in v2) ─────────────────────────────────
+
+export interface ImpactProjection {
+  attachmentPointId: string;
+  hubName: string;
+  severity: string;
+  delayDays: number;
+  narrative: string;
+}
+
+export interface PersonalizedImpactReport {
+  simulationId: string;
+  userId: string;
+  overallSeverity: string;
+  projections: ImpactProjection[];
+  recommendations: string[];
+  narrative: string;
 }

@@ -1,0 +1,19 @@
+{
+  "chokepoints": [
+    { "id": "suez_canal", "name": "Suez Canal", "lat": 30.4278, "lng": 32.3448, "region": "Middle East", "type": "canal", "throughputPct": 12, "alternatives": ["cape_of_good_hope"], "vulnerabilities": ["conflict", "infrastructure", "policy"] },
+    { "id": "strait_of_malacca", "name": "Strait of Malacca", "lat": 2.5, "lng": 101.5, "region": "Southeast Asia", "type": "strait", "throughputPct": 25, "alternatives": ["sunda_strait", "lombok_strait"], "vulnerabilities": ["piracy", "conflict", "congestion"] },
+    { "id": "strait_of_hormuz", "name": "Strait of Hormuz", "lat": 26.5667, "lng": 56.25, "region": "Middle East", "type": "strait", "throughputPct": 21, "alternatives": [], "vulnerabilities": ["conflict", "policy", "military"] },
+    { "id": "panama_canal", "name": "Panama Canal", "lat": 9.08, "lng": -79.68, "region": "Central America", "type": "canal", "throughputPct": 5, "alternatives": ["cape_horn", "us_rail_bridge"], "vulnerabilities": ["weather", "drought", "infrastructure"] },
+    { "id": "bosphorus", "name": "Bosphorus Strait", "lat": 41.12, "lng": 29.05, "region": "Europe", "type": "strait", "throughputPct": 3, "alternatives": [], "vulnerabilities": ["congestion", "policy", "conflict"] },
+    { "id": "gibraltar", "name": "Strait of Gibraltar", "lat": 35.97, "lng": -5.5, "region": "Europe", "type": "strait", "throughputPct": 8, "alternatives": [], "vulnerabilities": ["congestion", "weather"] },
+    { "id": "cape_of_good_hope", "name": "Cape of Good Hope", "lat": -34.3568, "lng": 18.4740, "region": "Africa", "type": "passage", "throughputPct": 6, "alternatives": ["suez_canal"], "vulnerabilities": ["weather", "piracy"] },
+    { "id": "bab_el_mandeb", "name": "Bab el-Mandeb Strait", "lat": 12.6, "lng": 43.3, "region": "Middle East", "type": "strait", "throughputPct": 9, "alternatives": ["cape_of_good_hope"], "vulnerabilities": ["conflict", "piracy", "military"] },
+    { "id": "taiwan_strait", "name": "Taiwan Strait", "lat": 24.0, "lng": 119.5, "region": "East Asia", "type": "strait", "throughputPct": 10, "alternatives": [], "vulnerabilities": ["conflict", "military", "geopolitical"] },
+    { "id": "english_channel", "name": "English Channel", "lat": 50.5, "lng": -1.0, "region": "Europe", "type": "strait", "throughputPct": 4, "alternatives": [], "vulnerabilities": ["weather", "congestion"] },
+    { "id": "danish_straits", "name": "Danish Straits", "lat": 55.5, "lng": 12.0, "region": "Europe", "type": "strait", "throughputPct": 3, "alternatives": [], "vulnerabilities": ["weather", "congestion"] },
+    { "id": "lombok_strait", "name": "Lombok Strait", "lat": -8.5, "lng": 115.7, "region": "Southeast Asia", "type": "strait", "throughputPct": 2, "alternatives": ["strait_of_malacca"], "vulnerabilities": ["weather"] },
+    { "id": "sunda_strait", "name": "Sunda Strait", "lat": -6.1, "lng": 105.8, "region": "Southeast Asia", "type": "strait", "throughputPct": 2, "alternatives": ["strait_of_malacca"], "vulnerabilities": ["weather", "volcanic"] },
+    { "id": "mozambique_channel", "name": "Mozambique Channel", "lat": -18.0, "lng": 40.0, "region": "Africa", "type": "passage", "throughputPct": 3, "alternatives": ["cape_of_good_hope"], "vulnerabilities": ["weather", "piracy"] },
+    { "id": "cape_horn", "name": "Cape Horn", "lat": -55.9857, "lng": -67.2742, "region": "South America", "type": "passage", "throughputPct": 1, "alternatives": ["panama_canal"], "vulnerabilities": ["weather"] }
+  ]
+}

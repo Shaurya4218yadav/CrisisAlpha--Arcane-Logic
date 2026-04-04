@@ -1,205 +1,315 @@
 // ============================================================
-// CrisisAlpha — Propagation Engine
-// Spreads risk across the logistics graph using weighted formulas
+// CrisisAlpha — Propagation Engine (v2)
+// Enhanced risk propagation with chokepoints, political relations
 // ============================================================
 
-import { GraphState, getStatusFromRisk } from '../models/graph';
-import { ScenarioConfig, Industry } from '../models/scenario';
-import { getNeighborNodes, getEdgesArray, getNodesArray } from './graphService';
-import * as fs from 'fs';
-import * as path from 'path';
+import type { GraphState, TradeHubNode, TradeRouteEdge, ChokepointNode } from '../models/graph';
+import type { SimulationConfig } from '../models/simulation';
+import { getNodeStatusFromRisk, getEdgeStatusFromRisk, clamp } from '../models/graph';
+import { getNeighborNodes, getEdgeBetween, getPoliticalRelation, getRoutesThrough } from './graphService';
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-let industriesData: any = null;
+const DECAY_RATE = 0.02;
+const BASE_PROPAGATION_RATE = 0.15;
+const CHOKEPOINT_AMPLIFIER = 1.5;
 
-function getIndustries() {
-  if (!industriesData) {
-    industriesData = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, 'industries.json'), 'utf-8')
-    );
-  }
-  return industriesData.industries;
-}
-
-// Alpha: how strongly risk spreads between nodes
-const ALPHA = 0.25;
-// Beta: how strongly resilience dampens risk
-const BETA = 0.15;
-// Decay rate per tick for natural risk dissipation
-const DECAY = 0.02;
-
-export function applyInitialShock(
-  graph: GraphState,
-  config: ScenarioConfig
-): void {
-  const industries = getIndustries();
-  const industryProfile = industries[config.industry];
-
-  const originNode = graph.nodes.get(config.originNodeId);
-  if (!originNode) return;
-
-  // Direct shock to origin
-  const shockIntensity =
-    0.3 * config.conflictIntensity +
-    0.3 * config.fuelShortage +
-    0.4 * config.policyRestriction;
-
-  originNode.riskScore = Math.min(1, 0.7 + shockIntensity * 0.3);
-  originNode.status = getStatusFromRisk(originNode.riskScore);
-
-  // Apply shock to nearby nodes (1-hop neighbors)
-  const neighbors = getNeighborNodes(graph, config.originNodeId);
-  for (const neighborId of neighbors) {
-    const neighbor = graph.nodes.get(neighborId);
-    if (!neighbor) continue;
-
-    // Industry relevance modifies shock
-    const industryWeight = neighbor.industryWeights[config.industry] || 0.3;
-    const neighborShock = shockIntensity * 0.4 * industryWeight;
-    neighbor.riskScore = Math.min(1, neighbor.riskScore + neighborShock);
-    neighbor.status = getStatusFromRisk(neighbor.riskScore);
-  }
-
-  // Apply shock to edges connected to origin
-  const edgeIds = graph.adjacency.get(config.originNodeId) || [];
-  for (const edgeId of edgeIds) {
-    const edge = graph.edges.get(edgeId);
-    if (!edge) continue;
-
-    const fuelFactor = 1 + config.fuelShortage * edge.fuelSensitivity;
-    const policyFactor = 1 + config.policyRestriction * edge.policySensitivity;
-    edge.riskScore = Math.min(1, shockIntensity * 0.6 * fuelFactor * policyFactor * 0.5);
-    edge.status = getStatusFromRisk(edge.riskScore);
-  }
-}
+// ── Main Propagation Tick ───────────────────────────────────
 
 export function propagateTick(
   graph: GraphState,
-  config: ScenarioConfig,
-  tick: number
+  config: SimulationConfig,
+  tick: number,
+  industryWeights: Record<string, number>
 ): void {
-  const industries = getIndustries();
-  const industryProfile = industries[config.industry];
-
-  // Store previous risk scores for computation
-  const prevNodeRisks = new Map<string, number>();
-  for (const [id, node] of graph.nodes) {
-    prevNodeRisks.set(id, node.riskScore);
+  // Phase 1: Apply initial shock (first tick only)
+  if (tick === 0) {
+    applyInitialShock(graph, config, industryWeights);
   }
 
-  // 1. Update node risks based on neighbor propagation
-  for (const [nodeId, node] of graph.nodes) {
-    const prevRisk = prevNodeRisks.get(nodeId) || 0;
-    const neighborIds = getNeighborNodes(graph, nodeId);
+  // Phase 2: Propagate chokepoint disruptions to dependent routes
+  propagateChokepointImpact(graph);
 
-    // Sum of neighbor risk weighted by transmission
-    let neighborRiskSum = 0;
-    let weightSum = 0;
-    for (const nId of neighborIds) {
-      const nRisk = prevNodeRisks.get(nId) || 0;
-      const edge = getEdgeBetweenFromGraph(graph, nodeId, nId);
-      const transmissionWeight = edge ? edge.riskTransmissionWeight : 0.5;
-      neighborRiskSum += nRisk * transmissionWeight;
-      weightSum += transmissionWeight;
+  // Phase 3: Propagate risk across edges
+  propagateEdgeRisk(graph, config, industryWeights);
+
+  // Phase 4: Apply political relation modifiers
+  applyPoliticalModifiers(graph, config);
+
+  // Phase 5: Natural decay toward stability
+  applyDecay(graph);
+
+  // Phase 6: Update all statuses
+  updateStatuses(graph);
+}
+
+// ── Initial Shock ───────────────────────────────────────────
+
+function applyInitialShock(graph: GraphState, config: SimulationConfig, industryWeights: Record<string, number>): void {
+  // Apply to origin node
+  const originNode = graph.nodes.get(config.originNodeId);
+  if (originNode) {
+    const industrySensitivity = originNode.industryWeights[config.industry] || 0.5;
+    const shock = 0.5 +
+      config.conflictIntensity * 0.3 +
+      config.fuelShortage * 0.15 +
+      config.policyRestriction * 0.15;
+
+    originNode.currentRiskScore = clamp(originNode.currentRiskScore + shock * industrySensitivity);
+    originNode.activeDisruptions.push(config.id);
+  }
+
+  // Apply to all affected hubs from hypothesis
+  for (const hubId of config.hypothesis.affectedHubIds) {
+    if (hubId === config.originNodeId) continue;
+    const hub = graph.nodes.get(hubId);
+    if (!hub) continue;
+
+    const industrySensitivity = hub.industryWeights[config.industry] || 0.3;
+    const shock = 0.3 +
+      config.conflictIntensity * 0.2 +
+      config.fuelShortage * 0.1 +
+      config.policyRestriction * 0.1;
+
+    hub.currentRiskScore = clamp(hub.currentRiskScore + shock * industrySensitivity);
+    hub.activeDisruptions.push(config.id);
+  }
+
+  // Apply to affected chokepoints
+  for (const cpId of config.hypothesis.affectedChokepoints) {
+    const cp = graph.chokepoints.get(cpId);
+    if (!cp) continue;
+
+    cp.currentRiskScore = clamp(cp.currentRiskScore + config.conflictIntensity * 0.6 + config.policyRestriction * 0.2);
+  }
+
+  // Apply initial mutations from hypothesis
+  for (const mutation of config.hypothesis.initialMutations) {
+    if (mutation.targetType === 'node') {
+      const node = graph.nodes.get(mutation.targetId);
+      if (!node) continue;
+      if (mutation.property === 'currentRiskScore') {
+        if (mutation.operation === 'set') node.currentRiskScore = clamp(mutation.value as number);
+        else if (mutation.operation === 'increment') node.currentRiskScore = clamp(node.currentRiskScore + (mutation.value as number));
+      }
+    } else if (mutation.targetType === 'edge') {
+      const edge = graph.edges.get(mutation.targetId);
+      if (!edge) continue;
+      if (mutation.property === 'currentCapacityPct') {
+        if (mutation.operation === 'set') edge.currentCapacityPct = clamp(mutation.value as number);
+        else if (mutation.operation === 'multiply') edge.currentCapacityPct = clamp(edge.currentCapacityPct * (mutation.value as number));
+      }
     }
-
-    const avgNeighborRisk = weightSum > 0 ? neighborRiskSum / weightSum : 0;
-
-    // Industry relevance multiplier
-    const industryWeight = node.industryWeights[config.industry] || 0.3;
-
-    // Crisis factor effects (modulated per tick)
-    const localShock = nodeId === config.originNodeId
-      ? 0.05 * (config.conflictIntensity + config.fuelShortage) * (1 - tick / (config.durationDays * 2))
-      : 0;
-
-    // Apply propagation formula
-    const newRisk =
-      prevRisk +
-      localShock +
-      ALPHA * avgNeighborRisk * industryWeight -
-      BETA * node.resilienceScore * node.inventoryBuffer -
-      DECAY;
-
-    node.riskScore = Math.max(0, Math.min(1, newRisk));
-    node.status = getStatusFromRisk(node.riskScore);
   }
+}
 
-  // 2. Update edge risks from connected node conditions
-  for (const [edgeId, edge] of graph.edges) {
-    const sourceNode = graph.nodes.get(edge.sourceNodeId);
-    const targetNode = graph.nodes.get(edge.targetNodeId);
+// ── Chokepoint Impact Propagation ───────────────────────────
+
+function propagateChokepointImpact(graph: GraphState): void {
+  for (const [, cp] of graph.chokepoints) {
+    if (cp.currentRiskScore <= 0.1) continue;
+
+    // Find all routes passing through this chokepoint
+    const affectedRoutes = getRoutesThrough(graph, cp.id);
+    for (const route of affectedRoutes) {
+      const edge = graph.edges.get(route.id);
+      if (!edge) continue;
+
+      // Chokepoint risk amplifies route risk
+      const chokepointImpact = cp.currentRiskScore * CHOKEPOINT_AMPLIFIER * edge.geopoliticalSensitivity;
+      edge.currentRiskScore = clamp(edge.currentRiskScore + chokepointImpact * 0.1);
+      edge.currentCapacityPct = clamp(edge.currentCapacityPct - cp.currentRiskScore * 0.05, 0, 1);
+    }
+  }
+}
+
+// ── Edge-Based Risk Propagation ─────────────────────────────
+
+function propagateEdgeRisk(graph: GraphState, config: SimulationConfig, industryWeights: Record<string, number>): void {
+  // Collect deltas (don't modify during iteration)
+  const nodeDeltas = new Map<string, number>();
+  const edgeDeltas = new Map<string, number>();
+
+  for (const [, edge] of graph.edges) {
+    const sourceNode = graph.nodes.get(edge.sourceHubId);
+    const targetNode = graph.nodes.get(edge.targetHubId);
     if (!sourceNode || !targetNode) continue;
 
-    const avgNodeRisk = (sourceNode.riskScore + targetNode.riskScore) / 2;
+    // Risk flows bidirectionally weighted by transmission weight
+    const riskDiff = sourceNode.currentRiskScore - targetNode.currentRiskScore;
+    const transmissionRate = edge.riskTransmissionWeight * BASE_PROPAGATION_RATE;
 
-    // Transport type sensitivity
-    const isCriticalTransport = industryProfile.criticalTransportTypes.includes(edge.transportType);
-    const transportSensitivity = isCriticalTransport ? 1.3 : 0.8;
+    // Source → Target
+    if (riskDiff > 0.05) {
+      const industrySensitivity = targetNode.industryWeights[config.industry] || 0.3;
+      const crisisFactors = 1 +
+        config.fuelShortage * edge.fuelSensitivity * 0.3 +
+        config.policyRestriction * edge.policySensitivity * 0.3 +
+        config.conflictIntensity * edge.geopoliticalSensitivity * 0.3;
 
-    const fuelFactor = 1 + config.fuelShortage * edge.fuelSensitivity * 0.5;
-    const policyFactor = 1 + config.policyRestriction * edge.policySensitivity * 0.5;
+      const resilienceDamper = 1 - targetNode.resilienceScore * 0.3;
+      const delta = riskDiff * transmissionRate * industrySensitivity * crisisFactors * resilienceDamper;
 
-    edge.riskScore = Math.max(0, Math.min(1,
-      avgNodeRisk * transportSensitivity * fuelFactor * policyFactor * 0.7
-    ));
-    edge.status = getStatusFromRisk(edge.riskScore);
+      const existing = nodeDeltas.get(edge.targetHubId) || 0;
+      nodeDeltas.set(edge.targetHubId, existing + delta);
+    }
+
+    // Target → Source (reverse propagation, weaker)
+    if (riskDiff < -0.05) {
+      const industrySensitivity = sourceNode.industryWeights[config.industry] || 0.3;
+      const resilienceDamper = 1 - sourceNode.resilienceScore * 0.3;
+      const delta = Math.abs(riskDiff) * transmissionRate * 0.5 * industrySensitivity * resilienceDamper;
+
+      const existing = nodeDeltas.get(edge.sourceHubId) || 0;
+      nodeDeltas.set(edge.sourceHubId, existing + delta);
+    }
+
+    // Edge risk is influenced by both endpoints
+    const avgEndpointRisk = (sourceNode.currentRiskScore + targetNode.currentRiskScore) / 2;
+    const edgeDelta = (avgEndpointRisk - edge.currentRiskScore) * 0.1;
+    edgeDeltas.set(edge.id, edgeDelta);
   }
-}
 
-function getEdgeBetweenFromGraph(graph: GraphState, nodeA: string, nodeB: string) {
-  const edgeIds = graph.adjacency.get(nodeA) || [];
-  for (const edgeId of edgeIds) {
-    const edge = graph.edges.get(edgeId);
-    if (!edge) continue;
-    if (
-      (edge.sourceNodeId === nodeA && edge.targetNodeId === nodeB) ||
-      (edge.sourceNodeId === nodeB && edge.targetNodeId === nodeA)
-    ) {
-      return edge;
+  // Apply deltas
+  for (const [nodeId, delta] of nodeDeltas) {
+    const node = graph.nodes.get(nodeId);
+    if (node) {
+      node.currentRiskScore = clamp(node.currentRiskScore + delta);
     }
   }
-  return undefined;
+
+  for (const [edgeId, delta] of edgeDeltas) {
+    const edge = graph.edges.get(edgeId);
+    if (edge) {
+      edge.currentRiskScore = clamp(edge.currentRiskScore + delta);
+      // Capacity inversely proportional to risk
+      edge.currentCapacityPct = clamp(1 - edge.currentRiskScore * 0.8, 0.05, 1);
+    }
+  }
 }
 
-// Apply a user decision that modifies graph state
-export function applyDecisionEffect(
+// ── Political Relation Modifiers ────────────────────────────
+
+function applyPoliticalModifiers(graph: GraphState, config: SimulationConfig): void {
+  const originNode = graph.nodes.get(config.originNodeId);
+  if (!originNode) return;
+
+  for (const [, node] of graph.nodes) {
+    if (node.id === config.originNodeId) continue;
+    if (node.currentRiskScore < 0.05) continue;
+
+    const relation = getPoliticalRelation(graph, originNode.countryId, node.countryId);
+    if (!relation) continue;
+
+    // Allied countries: risk dampened
+    if (relation.diplomaticScore > 0.5) {
+      node.currentRiskScore = clamp(node.currentRiskScore * (1 - relation.diplomaticScore * 0.05));
+    }
+    // Hostile countries: risk amplified
+    else if (relation.diplomaticScore < -0.3) {
+      node.currentRiskScore = clamp(node.currentRiskScore * (1 + Math.abs(relation.diplomaticScore) * 0.05));
+    }
+
+    // Active sanctions amplify risk further
+    if (relation.activeSanctions) {
+      node.currentRiskScore = clamp(node.currentRiskScore + config.policyRestriction * 0.02);
+    }
+  }
+}
+
+// ── Decay ───────────────────────────────────────────────────
+
+function applyDecay(graph: GraphState): void {
+  for (const [, node] of graph.nodes) {
+    if (node.currentRiskScore > 0) {
+      const decayRate = DECAY_RATE * node.resilienceScore;
+      node.currentRiskScore = clamp(node.currentRiskScore - decayRate);
+    }
+  }
+
+  for (const [, edge] of graph.edges) {
+    if (edge.currentRiskScore > 0) {
+      edge.currentRiskScore = clamp(edge.currentRiskScore - DECAY_RATE * 0.5);
+    }
+  }
+
+  for (const [, cp] of graph.chokepoints) {
+    if (cp.currentRiskScore > 0) {
+      cp.currentRiskScore = clamp(cp.currentRiskScore - DECAY_RATE * 0.3);
+    }
+  }
+}
+
+// ── Status Updates ──────────────────────────────────────────
+
+function updateStatuses(graph: GraphState): void {
+  for (const [, node] of graph.nodes) {
+    node.currentStatus = getNodeStatusFromRisk(node.currentRiskScore);
+  }
+  for (const [, edge] of graph.edges) {
+    edge.currentStatus = getEdgeStatusFromRisk(edge.currentRiskScore);
+  }
+  for (const [, cp] of graph.chokepoints) {
+    cp.currentStatus = getNodeStatusFromRisk(cp.currentRiskScore);
+  }
+}
+
+// ── Decision Application ────────────────────────────────────
+
+export function applyDecision(
   graph: GraphState,
   decisionType: string,
   relatedNodeIds: string[],
   relatedEdgeIds: string[]
 ): void {
   switch (decisionType) {
-    case 'reroute':
-      // Reduce risk on related edges
+    case 'reroute': {
       for (const edgeId of relatedEdgeIds) {
         const edge = graph.edges.get(edgeId);
         if (edge) {
-          edge.riskScore = Math.max(0, edge.riskScore - 0.2);
-          edge.status = getStatusFromRisk(edge.riskScore);
+          edge.currentRiskScore = clamp(edge.currentRiskScore * 0.6);
+          edge.currentCapacityPct = clamp(edge.currentCapacityPct + 0.2, 0, 1);
         }
       }
       break;
-    case 'inventory_shift':
-      // Boost resilience on target nodes
+    }
+    case 'inventory_shift': {
       for (const nodeId of relatedNodeIds) {
         const node = graph.nodes.get(nodeId);
         if (node) {
-          node.inventoryBuffer = Math.min(1, node.inventoryBuffer + 0.2);
-          node.riskScore = Math.max(0, node.riskScore - 0.15);
-          node.status = getStatusFromRisk(node.riskScore);
+          node.currentRiskScore = clamp(node.currentRiskScore * 0.8);
+          node.inventoryBufferDays += 3;
         }
       }
       break;
-    case 'pricing':
-      // Increase profit potential by reducing demand pressure
+    }
+    case 'pricing': {
       for (const nodeId of relatedNodeIds) {
         const node = graph.nodes.get(nodeId);
         if (node) {
-          node.riskScore = Math.max(0, node.riskScore - 0.1);
-          node.status = getStatusFromRisk(node.riskScore);
+          node.currentRiskScore = clamp(node.currentRiskScore * 0.9);
         }
       }
       break;
+    }
+    case 'activate_backup': {
+      for (const nodeId of relatedNodeIds) {
+        const node = graph.nodes.get(nodeId);
+        if (node) {
+          node.currentRiskScore = clamp(node.currentRiskScore * 0.5);
+          node.resilienceScore = clamp(node.resilienceScore + 0.1, 0, 1);
+        }
+      }
+      break;
+    }
+    case 'hedge': {
+      for (const nodeId of relatedNodeIds) {
+        const node = graph.nodes.get(nodeId);
+        if (node) {
+          node.currentRiskScore = clamp(node.currentRiskScore * 0.85);
+        }
+      }
+      break;
+    }
   }
+
+  updateStatuses(graph);
 }

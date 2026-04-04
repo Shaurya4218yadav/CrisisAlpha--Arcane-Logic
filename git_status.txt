@@ -1,0 +1,101 @@
+warning: in the working copy of 'backend/.env.example', LF will be replaced by CRLF the next time Git touches it
+On branch feature/ai-sitrep
+Your branch is up to date with 'origin/feature/ai-sitrep'.
+
+You have unmerged paths.
+  (fix conflicts and run "git commit")
+  (use "git merge --abort" to abort the merge)
+
+Changes to be committed:
+	new file:   ARCHITECTURE.md
+	new file:   backend/src/data/chokepoints.json
+	new file:   backend/src/data/industry_templates.json
+	new file:   backend/src/data/political_relations.json
+	new file:   backend/src/data/trade_hubs.json
+	new file:   backend/src/data/trade_routes.json
+	modified:   backend/src/models/event.ts
+	modified:   backend/src/models/graph.ts
+	deleted:    backend/src/models/scenario.ts
+	new file:   backend/src/models/simulation.ts
+	new file:   backend/src/models/user.ts
+	new file:   backend/src/routes/chatRoutes.ts
+	new file:   backend/src/routes/feedRoutes.ts
+	new file:   backend/src/routes/graphRoutes.ts
+	new file:   backend/src/routes/simulationRoutes.ts
+	new file:   backend/src/routes/userRoutes.ts
+	new file:   backend/src/services/causalityFilter.ts
+	modified:   backend/src/services/eventService.ts
+	new file:   backend/src/services/eventStoreService.ts
+	modified:   backend/src/services/graphService.ts
+	new file:   backend/src/services/inferenceService.ts
+	new file:   backend/src/services/ingestionService.ts
+	modified:   backend/src/services/propagationEngine.ts
+	modified:   backend/src/services/recommendationService.ts
+	modified:   backend/src/services/scoreService.ts
+	new file:   backend/src/services/shadowGraphService.ts
+	modified:   backend/src/services/simulationService.ts
+	new file:   backend/src/services/userContextService.ts
+	new file:   frontend/lint_output.txt
+	modified:   frontend/next.config.ts
+	modified:   frontend/package-lock.json
+	modified:   frontend/package.json
+	new file:   frontend/public/earth-blue-marble.jpg
+	new file:   frontend/public/earth-clouds.png
+	new file:   frontend/public/earth-dark.jpg
+	new file:   frontend/public/earth-night.jpg
+	new file:   frontend/public/earth-topology.png
+	modified:   frontend/src/app/globals.css
+	modified:   frontend/src/app/page.tsx
+	new file:   frontend/src/components/chat/ChatAssistant.tsx
+	modified:   frontend/src/components/controls/ControlPanel.tsx
+	modified:   frontend/src/components/decisions/DecisionPanel.tsx
+	new file:   frontend/src/components/globe/EventToast.tsx
+	new file:   frontend/src/components/globe/GlobeView.tsx
+	new file:   frontend/src/components/globe/LayerToggle.tsx
+	new file:   frontend/src/components/modal/PreSimulationModal.tsx
+	new file:   frontend/src/components/panels/IntelFeed.tsx
+	new file:   frontend/src/components/panels/RightPanel.tsx
+	new file:   frontend/src/components/panels/SimulationLogs.tsx
+	modified:   frontend/src/lib/api/client.ts
+	new file:   frontend/src/lib/globe/utils.ts
+	new file:   frontend/src/lib/mock/simulationData.ts
+	modified:   frontend/src/state/scenarioStore.ts
+	modified:   frontend/src/types/index.ts
+
+Unmerged paths:
+  (use "git add/rm <file>..." as appropriate to mark resolution)
+	both added:      backend/.env.example
+	both modified:   backend/package-lock.json
+	both modified:   backend/package.json
+	deleted by them: backend/src/routes/scenarioRoutes.ts
+	both modified:   backend/src/server.ts
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   .gitignore
+	modified:   backend/src/routes/simulationRoutes.ts
+	modified:   backend/src/services/aiService.ts
+	modified:   backend/src/services/simulationService.ts
+	modified:   frontend/next.config.ts
+	modified:   frontend/src/components/summary/ResultsDashboard.tsx
+	modified:   frontend/src/lib/api/client.ts
+	modified:   frontend/src/state/scenarioStore.ts
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	backend/build.log
+	backend/build2.log
+	backend/build_error.txt
+	backend/intelx.log
+	backend/intelx2.log
+	backend/key-test.log
+	backend/no-hyphen.log
+	backend/output.log
+	backend/output2.log
+	backend/output3.log
+	backend/output4.log
+	backend/scripts/
+	frontend/build.log
+	git_status.txt
+

@@ -49,3 +49,6 @@ Thumbs.db
 backend/dist
 frontend/.next
 frontend/out
+
+# Root lockfile - not needed, causes Turbopack memory issues
+/package-lock.json

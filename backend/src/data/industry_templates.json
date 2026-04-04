@@ -1,0 +1,87 @@
+{
+  "templates": {
+    "automotive": {
+      "industry": "automotive",
+      "typicalSources": ["nagoya", "stuttgart", "detroit", "pune", "shanghai", "busan"],
+      "typicalRoutes": ["strait_of_malacca", "suez_canal", "panama_canal"],
+      "typicalMarkets": ["losangeles", "rotterdam", "mumbai", "shanghai"],
+      "criticalDependencies": ["semiconductors", "steel", "lithium", "rubber", "glass"],
+      "defaultAttachments": [
+        { "hubId": "nagoya", "relationship": "source", "goodsCategory": "auto_parts", "dependencyStrength": "critical" },
+        { "hubId": "stuttgart", "relationship": "manufacture", "goodsCategory": "vehicles", "dependencyStrength": "high" },
+        { "hubId": "shanghai", "relationship": "source", "goodsCategory": "semiconductors", "dependencyStrength": "critical" },
+        { "hubId": "rotterdam", "relationship": "sell_to", "goodsCategory": "vehicles", "dependencyStrength": "high" },
+        { "hubId": "losangeles", "relationship": "sell_to", "goodsCategory": "vehicles", "dependencyStrength": "high" }
+      ]
+    },
+    "energy": {
+      "industry": "energy",
+      "typicalSources": ["riyadh", "dubai", "tehran", "houston", "doha"],
+      "typicalRoutes": ["strait_of_hormuz", "suez_canal", "bab_el_mandeb", "cape_of_good_hope"],
+      "typicalMarkets": ["shanghai", "tokyo", "rotterdam", "mumbai"],
+      "criticalDependencies": ["crude_oil", "natural_gas", "LNG", "refined_products"],
+      "defaultAttachments": [
+        { "hubId": "riyadh", "relationship": "source", "goodsCategory": "crude_oil", "dependencyStrength": "critical" },
+        { "hubId": "dubai", "relationship": "ship_through", "goodsCategory": "crude_oil", "dependencyStrength": "high" },
+        { "hubId": "houston", "relationship": "source", "goodsCategory": "refined_products", "dependencyStrength": "high" },
+        { "hubId": "rotterdam", "relationship": "warehouse", "goodsCategory": "refined_products", "dependencyStrength": "medium" },
+        { "hubId": "tokyo", "relationship": "sell_to", "goodsCategory": "LNG", "dependencyStrength": "critical" }
+      ]
+    },
+    "pharma": {
+      "industry": "pharma",
+      "typicalSources": ["mumbai", "chennai", "shanghai", "hamburg"],
+      "typicalRoutes": ["suez_canal", "strait_of_malacca"],
+      "typicalMarkets": ["newyork", "london", "tokyo", "rotterdam"],
+      "criticalDependencies": ["API_ingredients", "packaging", "cold_chain", "chemicals"],
+      "defaultAttachments": [
+        { "hubId": "mumbai", "relationship": "source", "goodsCategory": "API_ingredients", "dependencyStrength": "critical" },
+        { "hubId": "chennai", "relationship": "manufacture", "goodsCategory": "generic_drugs", "dependencyStrength": "high" },
+        { "hubId": "hamburg", "relationship": "manufacture", "goodsCategory": "specialty_pharma", "dependencyStrength": "high" },
+        { "hubId": "newyork", "relationship": "sell_to", "goodsCategory": "pharmaceuticals", "dependencyStrength": "critical" },
+        { "hubId": "london", "relationship": "sell_to", "goodsCategory": "pharmaceuticals", "dependencyStrength": "high" }
+      ]
+    },
+    "consumer_goods": {
+      "industry": "consumer_goods",
+      "typicalSources": ["shenzhen", "guangzhou", "hochiminh", "bangkok"],
+      "typicalRoutes": ["strait_of_malacca", "suez_canal", "panama_canal"],
+      "typicalMarkets": ["losangeles", "rotterdam", "newyork", "london"],
+      "criticalDependencies": ["textiles", "electronics", "packaging", "plastics"],
+      "defaultAttachments": [
+        { "hubId": "shenzhen", "relationship": "source", "goodsCategory": "electronics", "dependencyStrength": "critical" },
+        { "hubId": "guangzhou", "relationship": "source", "goodsCategory": "consumer_electronics", "dependencyStrength": "high" },
+        { "hubId": "hochiminh", "relationship": "source", "goodsCategory": "textiles", "dependencyStrength": "medium" },
+        { "hubId": "losangeles", "relationship": "sell_to", "goodsCategory": "consumer_goods", "dependencyStrength": "critical" },
+        { "hubId": "rotterdam", "relationship": "warehouse", "goodsCategory": "consumer_goods", "dependencyStrength": "high" }
+      ]
+    },
+    "semiconductors": {
+      "industry": "semiconductors",
+      "typicalSources": ["taipei", "kaohsiung", "busan", "nagoya"],
+      "typicalRoutes": ["taiwan_strait", "strait_of_malacca"],
+      "typicalMarkets": ["losangeles", "stuttgart", "shanghai", "tokyo"],
+      "criticalDependencies": ["silicon_wafers", "photolithography", "rare_earth", "chemicals"],
+      "defaultAttachments": [
+        { "hubId": "taipei", "relationship": "source", "goodsCategory": "advanced_chips", "dependencyStrength": "critical" },
+        { "hubId": "kaohsiung", "relationship": "manufacture", "goodsCategory": "chip_packaging", "dependencyStrength": "critical" },
+        { "hubId": "busan", "relationship": "source", "goodsCategory": "memory_chips", "dependencyStrength": "high" },
+        { "hubId": "losangeles", "relationship": "sell_to", "goodsCategory": "semiconductors", "dependencyStrength": "high" },
+        { "hubId": "stuttgart", "relationship": "sell_to", "goodsCategory": "auto_chips", "dependencyStrength": "high" }
+      ]
+    },
+    "agriculture": {
+      "industry": "agriculture",
+      "typicalSources": ["santos", "buenos_aires", "houston", "sydney"],
+      "typicalRoutes": ["panama_canal", "cape_of_good_hope", "suez_canal"],
+      "typicalMarkets": ["shanghai", "mumbai", "lagos", "rotterdam"],
+      "criticalDependencies": ["grain", "fertilizer", "soybeans", "palm_oil"],
+      "defaultAttachments": [
+        { "hubId": "santos", "relationship": "source", "goodsCategory": "soybeans", "dependencyStrength": "critical" },
+        { "hubId": "houston", "relationship": "source", "goodsCategory": "grain", "dependencyStrength": "high" },
+        { "hubId": "shanghai", "relationship": "sell_to", "goodsCategory": "grain", "dependencyStrength": "critical" },
+        { "hubId": "mumbai", "relationship": "sell_to", "goodsCategory": "edible_oils", "dependencyStrength": "high" }
+      ]
+    }
+  }
+}

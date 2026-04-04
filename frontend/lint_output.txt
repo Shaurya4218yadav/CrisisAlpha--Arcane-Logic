@@ -1,0 +1,55 @@
+
+> frontend@0.1.0 lint
+> eslint
+
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/app/page.tsx
+   30:33  warning  'phase' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   30:40  warning  'nodes' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   32:10  warning  'error' is assigned a value but never used     @typescript-eslint/no-unused-vars
+   32:17  warning  'setError' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  158:10  warning  'ErrorScreen' is defined but never used        @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/chat/ChatAssistant.tsx
+  76:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/chat/ChatAssistant.tsx:76:7
+  74 |       const latestEvent = events[events.length - 1];
+  75 |       const eventMsgId = `event-${latestEvent.id}-${latestEvent.tick}`;
+> 76 |       setMessages((prev) => {
+     |       ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  77 |         if (prev.some(m => m.id === eventMsgId)) return prev;
+  78 |         return [
+  79 |           ...prev,  react-hooks/set-state-in-effect
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/controls/ControlPanel.tsx
+   8:18  warning  'AnimatePresence' is defined but never used          @typescript-eslint/no-unused-vars
+  43:5   warning  'selectedNodeId' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/globe/GlobeView.tsx
+  17:3  warning  'createArcCurve' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/globe/LayerToggle.tsx
+  8:10  warning  'useState' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/panels/SimulationLogs.tsx
+  38:28  warning  'i' is defined but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/summary/ResultsDashboard.tsx
+  16:31  warning  'events' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/components/summary/SummaryBar.tsx
+  12:41  warning  'dayLabel' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  17:9   warning  'brokenEdges' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+/Users/shaurya/Desktop/CrisisAlpha--Arcane-Logic/frontend/src/state/scenarioStore.ts
+  99:61  warning  'get' is defined but never used  @typescript-eslint/no-unused-vars
+
+✖ 15 problems (1 error, 14 warnings)
+

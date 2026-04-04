@@ -1,0 +1,4 @@
+[NewsAPI] Status: 401 | Data: {"status":"error","code":"apiKeyInvalid","message":"Your API key is invalid or incorrect. Check your
+[GNews] Status: 401 | Data: {"errors":["Invalid API Key provided."]}
+[Currents] Status: 401 | Data: {"status":"401","msg":"Invalid token"}
+[Mediastack] Status: 401 | Data: {"error":{"code":"invalid_access_key","message":"You have not supplied a valid API Access Key. [Tech

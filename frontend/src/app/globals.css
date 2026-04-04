@@ -165,3 +165,22 @@ input[type="range"]::-moz-range-track {
     box-shadow: 0 0 30px rgba(6, 182, 212, 0.4);
   }
 }
+
+/* Three.js canvas overrides */
+canvas {
+  outline: none !important;
+  cursor: grab;
+}
+
+canvas:active {
+  cursor: grabbing;
+}
+
+/* Globe overlay positioning */
+.globe-overlay {
+  pointer-events: none;
+}
+
+.globe-overlay > * {
+  pointer-events: auto;
+}

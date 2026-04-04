@@ -8,6 +8,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
 import { api, connectSocket, disconnectSocket } from '@/lib/api/client';
+import { runMockSimulation, getMockGraphData } from '@/lib/mock/simulationData';
 import { Industry, UserGoal, Preset } from '@/types';
 
 const INDUSTRIES: { value: Industry; label: string; icon: string }[] = [
@@ -22,6 +23,9 @@ const GOALS: { value: UserGoal; label: string; icon: string }[] = [
   { value: 'profit', label: 'Profit', icon: '💰' },
   { value: 'balanced', label: 'Balanced', icon: '⚖️' },
 ];
+
+// Track mock simulation stop function
+let mockSimStop: (() => void) | null = null;
 
 export default function ControlPanel() {
   const {
@@ -42,10 +46,13 @@ export default function ControlPanel() {
 
   const handleCreateAndStart = async () => {
     if (!config.originNodeId) return;
+    setPhase('running'); // Immediate feedback
+
     try {
+      // Try backend first
       const result = await api.createScenario(config);
       setScenarioId(result.session.id);
-      if (result.nodes) setGraph(result.nodes, result.edges);
+      if (result.nodes && result.edges) setGraph(result.nodes, result.edges);
 
       // Connect WebSocket
       connectSocket(
@@ -56,26 +63,53 @@ export default function ControlPanel() {
 
       // Start simulation
       await api.startScenario(result.session.id);
+      console.log('[SIM] Backend simulation started');
       setPhase('running');
     } catch (err) {
-      console.error('Failed to start:', err);
+      console.warn('[SIM] Backend unavailable, using mock simulation:', err);
+
+      // Fallback: use mock data
+      const mockGraph = getMockGraphData();
+      setGraph(mockGraph.nodes, mockGraph.edges);
+      setScenarioId(`mock_${Date.now()}`);
+
+      // Run mock simulation with same tick interface
+      const sim = runMockSimulation(
+        config,
+        (payload) => processTick(payload),
+        (data) => setFinalResult(data)
+      );
+      mockSimStop = sim.stop;
+      setPhase('running');
     }
   };
 
   const handlePause = async () => {
     if (!scenarioId) return;
-    await api.pauseScenario(scenarioId);
+    try {
+      await api.pauseScenario(scenarioId);
+    } catch {
+      console.warn('[SIM] Pause failed — mock mode');
+    }
     setPhase('paused');
   };
 
   const handleResume = async () => {
     if (!scenarioId) return;
-    await api.resumeScenario(scenarioId);
+    try {
+      await api.resumeScenario(scenarioId);
+    } catch {
+      console.warn('[SIM] Resume failed — mock mode');
+    }
     setPhase('running');
   };
 
   const handleReset = () => {
     disconnectSocket();
+    if (mockSimStop) {
+      mockSimStop();
+      mockSimStop = null;
+    }
     reset();
   };
 
@@ -169,6 +203,32 @@ export default function ControlPanel() {
               value={config.policyRestriction}
               onChange={(v) => updateConfig({ policyRestriction: v })}
               color="#8b5cf6"
+            />
+          </div>
+
+          {/* Advanced Parameters */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Advanced Controls
+            </label>
+
+            <SliderInput
+              label="Risk Sensitivity"
+              value={config.riskSensitivity}
+              onChange={(v) => updateConfig({ riskSensitivity: v })}
+              color="#06b6d4"
+            />
+            <SliderInput
+              label="Propagation Speed"
+              value={config.propagationSpeed}
+              onChange={(v) => updateConfig({ propagationSpeed: v })}
+              color="#a78bfa"
+            />
+            <SliderInput
+              label="Demand Volatility"
+              value={config.demandVolatility}
+              onChange={(v) => updateConfig({ demandVolatility: v })}
+              color="#f472b6"
             />
           </div>
 

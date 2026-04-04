@@ -5,15 +5,58 @@
 // Final scoring and summary screen with charts
 // ============================================================
 
-import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
 import { useScenarioStore } from '@/state/scenarioStore';
+import { api } from '@/lib/api/client';
+
+function Typewriter({ text }: { text: string }) {
+  const [displayedText, setDisplayedText] = useState('');
+
+  useEffect(() => {
+    let index = 0;
+    setDisplayedText('');
+    const timer = setInterval(() => {
+      index++;
+      setDisplayedText(text.slice(0, index));
+      if (index >= text.length) clearInterval(timer);
+    }, 10);
+    return () => clearInterval(timer);
+  }, [text]);
+
+  return (
+    <div className="font-mono text-emerald-400 group">
+      {displayedText}
+      <span className="inline-block w-2 h-4 ml-1 bg-emerald-400 animate-pulse group-hover:bg-cyan-400 transition-colors duration-300"></span>
+    </div>
+  );
+}
 
 export default function ResultsDashboard() {
-  const { finalResult, score, events, phase } = useScenarioStore();
+  const { finalResult, score, phase, aiSitRep, setAiSitRep, scenarioId } = useScenarioStore();
+  const [loadingAi, setLoadingAi] = useState(false);
+
+  useEffect(() => {
+    if (phase === 'completed' && scenarioId && !aiSitRep && !loadingAi) {
+      const fetchAiSitRep = async () => {
+        setLoadingAi(true);
+        try {
+          const { report } = await api.getAiSummary(scenarioId);
+          setAiSitRep(report);
+        } catch (err) {
+          console.error('[Results] Failed to fetch AI SitRep:', err);
+          setAiSitRep('The intelligence generation service is currently unavailable.');
+        } finally {
+          setLoadingAi(false);
+        }
+      };
+      fetchAiSitRep();
+    }
+  }, [phase, scenarioId, aiSitRep, setAiSitRep, loadingAi]);
 
   if (phase !== 'completed' || !finalResult) return null;
 
@@ -227,6 +270,69 @@ export default function ResultsDashboard() {
             </ResponsiveContainer>
           </div>
         </div>
+
+        {/* AI SitRep — Intelligence Briefing */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.2 }}
+          className="mb-10 relative"
+        >
+          <div className="absolute -top-3 left-6 px-3 py-1 bg-slate-900 border border-white/10 rounded-full z-10">
+            <span className="text-[10px] font-black text-cyan-400 uppercase tracking-[0.2em]">
+              Intelligence Briefing
+            </span>
+          </div>
+          
+          <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 border border-white/10 rounded-2xl p-6 pt-8 shadow-2xl overflow-hidden relative group">
+            {/* Scanline Effect */}
+            <div className="absolute inset-0 pointer-events-none bg-scanline opacity-[0.03]" />
+            
+            {/* Corner Accents */}
+            <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none opacity-20">
+              <div className="absolute top-4 right-4 w-4 h-[1px] bg-cyan-400" />
+              <div className="absolute top-4 right-4 w-[1px] h-4 bg-cyan-400" />
+            </div>
+
+            <div className="relative z-10 min-h-[100px] flex flex-col">
+              {loadingAi ? (
+                <div className="flex flex-col items-center justify-center py-8 gap-4">
+                  <div className="flex gap-1">
+                    {[0, 1, 2].map((i) => (
+                      <motion.div
+                        key={i}
+                        animate={{ opacity: [0.3, 1, 0.3] }}
+                        transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                        className="w-1.5 h-1.5 bg-cyan-500 rounded-full"
+                      />
+                    ))}
+                  </div>
+                  <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest animate-pulse">
+                    Analyzing neural patterns...
+                  </div>
+                </div>
+              ) : (
+                <div className="prose prose-invert prose-sm max-w-none">
+                  <div className="text-slate-300 leading-relaxed font-medium whitespace-pre-wrap selection:bg-cyan-500/30">
+                    {aiSitRep ? <Typewriter text={aiSitRep} /> : 'No data available.'}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)] animate-pulse" />
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">
+                  Secure Link Active
+                </span>
+              </div>
+              <div className="text-[9px] font-mono text-slate-600">
+                REF: ALPHA-SITREP-{scenarioId?.split('_')[1]?.toUpperCase() || 'UNKN'}
+              </div>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Close */}
         <div className="text-center">
