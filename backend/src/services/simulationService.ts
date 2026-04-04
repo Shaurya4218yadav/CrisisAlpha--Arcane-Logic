@@ -181,7 +181,7 @@ async function executeTick(session: SimulationSession, graph: GraphState, io: Se
       body: JSON.stringify(config)
     });
     if (response.ok) {
-      const data = await response.json();
+      const data = (await response.json()) as any;
       console.log(`[Sim] 🧠 Python Prediction Engine responded for tick ${session.currentTick}:`, data.message);
       // Fallback local propagation until nodes/edges are actually mapped from Python
       propagateTick(graph, config, session.currentTick, industryWeights);

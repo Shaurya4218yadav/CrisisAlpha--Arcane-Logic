@@ -21,6 +21,7 @@ export interface TradeHubNode {
 
   // Economic properties
   annualThroughput: number;          // TEU or tons (relative scale 0-100)
+  annualThroughputTEU: number;       // Real UNCTAD TEU/year
   industryWeights: Record<string, number>;
   gdpContribution: number;          // relative economic importance 0-1
 
@@ -84,6 +85,10 @@ export interface TradeRouteEdge {
   capacity: number;                  // units/day (0-100 scale)
   baseCostPerUnit: number;
   baseTransitDays: number;
+
+  // TEU-based volume (computed from port throughput)
+  baseVolumeTEU: number;             // daily baseline volume derived from port data
+  currentVolumeTEU: number;          // baseVolumeTEU × currentCapacityPct (live)
 
   // Sensitivity factors (0-1)
   fuelSensitivity: number;

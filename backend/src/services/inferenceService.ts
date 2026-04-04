@@ -17,7 +17,11 @@ import { QdrantClient } from '@qdrant/js-client-rest';
 let genAI: any = null;
 let model: any = null;
 let isAvailable = false;
-export const qdrant = new QdrantClient({ host: 'localhost', port: 6333 });
+let qdrantClient: QdrantClient | null = null;
+
+export function getQdrant(): QdrantClient | null {
+  return qdrantClient;
+}
 
 // ── Initialize ──────────────────────────────────────────────
 
@@ -26,17 +30,19 @@ export async function initInference(): Promise<boolean> {
   
   // 1. Initialize Vector Database (Qdrant)
   try {
-    const res = await qdrant.getCollections();
-    const exists = res.collections.find(c => c.name === 'historical_events');
+    qdrantClient = new QdrantClient({ host: 'localhost', port: 6333 });
+    const res = await qdrantClient.getCollections();
+    const exists = res.collections.find((c: any) => c.name === 'historical_events');
     if (!exists) {
-      await qdrant.createCollection('historical_events', {
+      await qdrantClient.createCollection('historical_events', {
         vectors: { size: 768, distance: 'Cosine' }
       });
       console.log('[Inference] 📦 Qdrant "historical_events" collection created.');
     }
     console.log('[Inference] 🧠 Connected to Qdrant Vector Database successfully.');
   } catch (err) {
-    console.error('[Inference] ❌ Failed to connect to Qdrant:', err);
+    qdrantClient = null;
+    console.log('[Inference] ⚠️ Qdrant unavailable — semantic search disabled (non-critical)');
   }
 
   // 2. Initialize LLM
@@ -204,7 +210,7 @@ export async function quickAnalysis(prompt: string): Promise<string> {
 // ── What-If Overlay (Delta Graph Semantic Search) ───────────
 
 export async function querySimilarScenarios(scenarioDescription: string) {
-  if (!isAvailable) return [];
+  if (!isAvailable || !qdrantClient) return [];
   
   try {
     console.log('[Inference] 🧠 Embedding scenario for Qdrant Search...');
@@ -212,7 +218,7 @@ export async function querySimilarScenarios(scenarioDescription: string) {
     const result = await embeddingModel.embedContent(scenarioDescription);
     const vector = result.embedding.values;
 
-    const searchResult = await qdrant.search('historical_events', {
+    const searchResult = await qdrantClient.search('historical_events', {
       vector: vector,
       limit: 3
     });
