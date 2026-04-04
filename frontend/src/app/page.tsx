@@ -72,7 +72,7 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-950 bg-grid overflow-hidden">
+    <div className="h-[100dvh] w-screen flex flex-col bg-slate-950 bg-grid overflow-hidden selection:bg-cyan-500/30">
       {/* Pre-Simulation Modal */}
       <PreSimulationModal />
 
@@ -150,7 +150,7 @@ export default function Home() {
         </motion.aside>
 
         {/* Mobile Navigation Bar */}
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 lg:hidden glass-panel px-4 py-2 rounded-2xl border border-white/10 shadow-xl shadow-black/50">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 lg:hidden glass-panel px-5 py-2.5 rounded-2xl border border-white/10 shadow-2xl shadow-black/60 scale-110 sm:scale-100">
            <button 
              onClick={() => { setShowMobileControls(true); setShowMobileData(false); }}
              className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 p-2 w-16"

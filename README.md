@@ -101,7 +101,7 @@ Key Features
 1. Select location and industry
 2. Configure crisis parameters
 3. Run simulation
-4. Observe:
+4. Observe:-
 
    * Spread of disruption
    * Failure points
