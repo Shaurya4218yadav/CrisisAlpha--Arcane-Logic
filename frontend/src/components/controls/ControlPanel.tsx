@@ -11,18 +11,7 @@ import { api, connectSocket, disconnectSocket } from '@/lib/api/client';
 import { runMockSimulation, getMockGraphData } from '@/lib/mock/simulationData';
 import { Industry, UserGoal, Preset } from '@/types';
 
-const INDUSTRIES: { value: Industry; label: string; icon: string }[] = [
-  { value: 'automotive', label: 'Automotive', icon: '🚗' },
-  { value: 'energy', label: 'Energy', icon: '⚡' },
-  { value: 'pharma', label: 'Pharma', icon: '💊' },
-  { value: 'consumer_goods', label: 'Consumer Goods', icon: '📦' },
-];
-
-const GOALS: { value: UserGoal; label: string; icon: string }[] = [
-  { value: 'resilience', label: 'Resilience', icon: '🛡️' },
-  { value: 'profit', label: 'Profit', icon: '💰' },
-  { value: 'balanced', label: 'Balanced', icon: '⚖️' },
-];
+// Removed Industries and Goals arrays as they are no longer required in the minimal UI.
 
 // Track mock simulation stop function
 let mockSimStop: (() => void) | null = null;
@@ -128,113 +117,48 @@ export default function ControlPanel() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-4"
         >
-          {/* Presets */}
-          {presets.length > 0 && (
-            <div>
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
-                Quick Presets
-              </label>
-              <div className="space-y-1.5">
-                {presets.map((preset: Preset) => (
-                  <button
-                    key={preset.id}
-                    onClick={() => applyPreset(preset)}
-                    className={`w-full text-left px-3 py-2 rounded-lg border transition-all text-xs ${
-                      config.originNodeId === preset.originNodeId &&
-                      config.industry === preset.industry
-                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="font-semibold">
-                      {preset.icon} {preset.name}
-                    </div>
-                    <div className="text-[10px] text-slate-500 mt-0.5 line-clamp-1">
-                      {preset.description}
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Industry */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
-              Industry
-            </label>
-            <div className="grid grid-cols-2 gap-1.5">
-              {INDUSTRIES.map((ind) => (
-                <button
-                  key={ind.value}
-                  onClick={() => updateConfig({ industry: ind.value })}
-                  className={`px-2 py-2 rounded-lg border text-xs font-medium transition-all ${
-                    config.industry === ind.value
-                      ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
-                  }`}
-                >
-                  {ind.icon} {ind.label}
-                </button>
-              ))}
-            </div>
-          </div>
 
-          {/* Crisis Parameters */}
+          {/* GROUP: External Factors */}
           <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Crisis Parameters
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+              External Factors
             </label>
 
             <SliderInput
-              label="Conflict Intensity"
+              label="Conflict"
               value={config.conflictIntensity}
               onChange={(v) => updateConfig({ conflictIntensity: v })}
-              color="#ef4444"
+              color="var(--color-primary)"
             />
             <SliderInput
-              label="Fuel Shortage"
+              label="Weather"
               value={config.fuelShortage}
               onChange={(v) => updateConfig({ fuelShortage: v })}
-              color="#f59e0b"
+              color="var(--color-primary)"
             />
+          </div>
+
+          <div className="w-full h-px bg-white/5 my-2" />
+
+          {/* GROUP: Policy */}
+          <div className="space-y-3">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
+              Policy
+            </label>
             <SliderInput
-              label="Policy Restriction"
+              label="Restriction"
               value={config.policyRestriction}
               onChange={(v) => updateConfig({ policyRestriction: v })}
-              color="#8b5cf6"
+              color="var(--color-primary)"
             />
           </div>
 
-          {/* Advanced Parameters */}
+          <div className="w-full h-px bg-white/5 my-2" />
+
+          {/* GROUP: Duration */}
           <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-              Advanced Controls
-            </label>
-
-            <SliderInput
-              label="Risk Sensitivity"
-              value={config.riskSensitivity}
-              onChange={(v) => updateConfig({ riskSensitivity: v })}
-              color="#06b6d4"
-            />
-            <SliderInput
-              label="Propagation Speed"
-              value={config.propagationSpeed}
-              onChange={(v) => updateConfig({ propagationSpeed: v })}
-              color="#a78bfa"
-            />
-            <SliderInput
-              label="Demand Volatility"
-              value={config.demandVolatility}
-              onChange={(v) => updateConfig({ demandVolatility: v })}
-              color="#f472b6"
-            />
-          </div>
-
-          {/* Duration */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 block">
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1">
               Duration: {config.durationDays} days
             </label>
             <input
@@ -246,47 +170,32 @@ export default function ControlPanel() {
               onChange={(e) =>
                 updateConfig({ durationDays: parseInt(e.target.value) })
               }
-              className="w-full accent-cyan-500"
+              className="w-full accent-primary"
             />
           </div>
 
-          {/* Goal */}
-          <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5 block">
-              Objective
-            </label>
-            <div className="grid grid-cols-3 gap-1.5">
-              {GOALS.map((goal) => (
-                <button
-                  key={goal.value}
-                  onClick={() => updateConfig({ userGoal: goal.value })}
-                  className={`px-2 py-2 rounded-lg border text-[11px] font-medium transition-all ${
-                    config.userGoal === goal.value
-                      ? 'bg-violet-500/20 border-violet-500/50 text-violet-300'
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
-                  }`}
-                >
-                  {goal.icon}
-                  <div className="mt-0.5">{goal.label}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+
 
           {/* Start Button */}
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleCreateAndStart}
-            disabled={!config.originNodeId}
-            className={`w-full py-3 rounded-xl font-bold text-sm uppercase tracking-wider transition-all ${
-              config.originNodeId
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40'
-                : 'bg-slate-700 text-slate-500 cursor-not-allowed'
-            }`}
-          >
-            {config.originNodeId ? '⚡ Launch Simulation' : 'Select Origin on Map'}
-          </motion.button>
+          <div className="pt-6">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              animate={config.originNodeId ? {
+                boxShadow: ['0px 0px 10px rgba(0,245,212,0.4)', '0px 0px 25px rgba(0,245,212,0.8)', '0px 0px 10px rgba(0,245,212,0.4)'],
+              } : {}}
+              transition={{ duration: 2, repeat: Infinity }}
+              onClick={handleCreateAndStart}
+              disabled={!config.originNodeId}
+              className={`w-full py-6 rounded-2xl font-black text-xl tracking-widest transition-all uppercase ${
+                config.originNodeId
+                  ? 'bg-primary/10 border border-primary text-primary hover:bg-primary hover:text-bg shadow-[0_0_30px_rgba(0,245,212,0.6)] animate-pulse'
+                  : 'bg-transparent border border-white/10 text-slate-600 opacity-50 cursor-not-allowed'
+              }`}
+            >
+              {config.originNodeId ? '🚀 Launch Simulation' : 'Select region first'}
+            </motion.button>
+          </div>
         </motion.div>
       )}
 
@@ -301,21 +210,21 @@ export default function ControlPanel() {
             {phase === 'running' ? (
               <button
                 onClick={handlePause}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold text-xs uppercase tracking-wider hover:bg-amber-500/30 transition-all"
+                className="flex-1 py-2.5 rounded-xl bg-warning/20 border border-warning/40 text-warning font-bold text-xs uppercase tracking-wider hover:bg-warning/30 transition-all"
               >
                 ⏸ Pause
               </button>
             ) : (
               <button
                 onClick={handleResume}
-                className="flex-1 py-2.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold text-xs uppercase tracking-wider hover:bg-emerald-500/30 transition-all"
+                className="flex-1 py-2.5 rounded-xl bg-safe/20 border border-safe/40 text-safe font-bold text-xs uppercase tracking-wider hover:bg-safe/30 transition-all"
               >
                 ▶ Resume
               </button>
             )}
             <button
               onClick={handleReset}
-              className="px-4 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-bold text-xs uppercase tracking-wider hover:bg-red-500/20 transition-all"
+              className="px-4 py-2.5 rounded-xl bg-danger/10 border border-danger/30 text-danger font-bold text-xs uppercase tracking-wider hover:bg-danger/20 transition-all"
             >
               ✕
             </button>
@@ -326,11 +235,11 @@ export default function ControlPanel() {
             <div className="text-slate-400 font-semibold text-[10px] uppercase tracking-wider">Active Scenario</div>
             <div className="flex justify-between text-slate-300">
               <span>Industry</span>
-              <span className="text-cyan-400 font-medium">{config.industry}</span>
+              <span className="text-[#00F5D4] font-medium">{config.industry}</span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span>Goal</span>
-              <span className="text-violet-400 font-medium">{config.userGoal}</span>
+              <span className="text-primary font-medium">{config.userGoal}</span>
             </div>
             <div className="flex justify-between text-slate-300">
               <span>Duration</span>
@@ -349,7 +258,7 @@ export default function ControlPanel() {
         >
           <button
             onClick={handleReset}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold text-sm uppercase tracking-wider shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 transition-all"
+            className="w-full py-3 rounded-xl bg-primary text-bg font-black text-sm uppercase tracking-wider shadow-[0_0_15px_rgba(0,245,212,0.3)] hover:shadow-[0_0_25px_rgba(0,245,212,0.6)] transition-all"
           >
             🔄 New Simulation
           </button>
@@ -388,9 +297,9 @@ function SliderInput({
         max={100}
         value={value * 100}
         onChange={(e) => onChange(parseInt(e.target.value) / 100)}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+        className="w-full h-1 rounded-full appearance-none cursor-pointer"
         style={{
-          background: `linear-gradient(to right, ${color} ${value * 100}%, rgba(255,255,255,0.1) ${value * 100}%)`,
+          background: `linear-gradient(to right, ${color} ${value * 100}%, rgba(255,255,255,0.05) ${value * 100}%)`,
         }}
       />
     </div>

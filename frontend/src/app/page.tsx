@@ -11,8 +11,8 @@ import { motion } from 'framer-motion';
 import { useScenarioStore } from '@/state/scenarioStore';
 import { api } from '@/lib/api/client';
 import { getMockGraphData, getMockPresets } from '@/lib/mock/simulationData';
-import ControlPanel from '@/components/controls/ControlPanel';
 import RightPanel from '@/components/panels/RightPanel';
+import MiniInfoCard from '@/components/panels/MiniInfoCard';
 import SummaryBar from '@/components/summary/SummaryBar';
 import ResultsDashboard from '@/components/summary/ResultsDashboard';
 import ChatAssistant from '@/components/chat/ChatAssistant';
@@ -59,7 +59,8 @@ export default function Home() {
       }
     }
     init();
-  }, [setGraph, setPresets]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (loading) {
     return <LoadingScreen />;
@@ -93,72 +94,81 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Panel — Controls */}
-        <motion.aside
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          className={`absolute lg:relative flex flex-col z-40 top-0 bottom-0 left-0 w-[85vw] max-w-sm lg:w-72 shrink-0 border-r border-white/5 glass-panel transition-transform duration-300 ${
-            showMobileControls ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-          }`}
-        >
-          <div className="flex justify-between items-center p-3 border-b border-white/5 lg:hidden shrink-0">
-             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Controls</h2>
-             <button onClick={() => setShowMobileControls(false)} className="text-slate-400 p-2 text-xl leading-none">×</button>
-          </div>
-          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar">
-            <ControlPanel />
-          </div>
-        </motion.aside>
+      <div className="flex-1 flex overflow-hidden relative group">
+        <div className="absolute inset-0 vignette-overlay z-0" />
+        
+        {/* Floating Mini Info Card */}
+        {phase === 'setup' && useScenarioStore.getState().config.originNodeId && (
+          <MiniInfoCard />
+        )}
 
         {/* Background Overlay for mobile panels */}
-        {(showMobileControls || showMobileData) && (
+        {(showMobileData || showMobileControls) && (
           <div 
             className="absolute inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm transition-opacity" 
-            onClick={() => { setShowMobileControls(false); setShowMobileData(false); }}
+            onClick={() => { setShowMobileData(false); setShowMobileControls(false); }}
           />
         )}
 
         {/* Center — 3D Globe */}
-        <main className="flex-1 relative w-full h-full">
+        <main className="flex-1 relative w-full h-full lg:h-auto z-10">
           <GlobeView activeLayer={activeLayer} />
           <LayerToggle active={activeLayer} onChange={setActiveLayer} />
           <EventToast />
+          
+          {/* Center Instruction */}
+          {phase === 'setup' && (
+             <motion.div 
+                initial={{ opacity: 0, y: -20 }}
+                animate={useScenarioStore.getState().selectedNodeId ? { opacity: 0 } : { opacity: 1, y: 0 }}
+                className="absolute top-1/4 left-1/2 -translate-x-1/2 pointer-events-none transition-opacity duration-500"
+             >
+                <div className="glass-panel px-3 py-1.5 rounded-full border border-white/5 flex items-center justify-center gap-2 opacity-40">
+                   <span className="text-slate-400 font-medium tracking-widest text-[10px] uppercase">
+                     Click a region to begin simulation
+                   </span>
+                </div>
+             </motion.div>
+          )}
         </main>
 
-        {/* Right Panel — Tabbed */}
+        {/* Right Panel — Content */}
         <motion.aside
           initial={{ x: 20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className={`absolute lg:relative flex flex-col z-40 top-0 bottom-0 right-0 w-[85vw] max-w-sm lg:w-80 shrink-0 border-l border-white/5 glass-panel transition-transform duration-300 ${
+          className={`absolute lg:relative flex z-40 top-0 bottom-0 right-0 h-full shrink-0 transition-transform duration-300 ${
             showMobileData ? 'translate-x-0' : 'translate-x-full lg:translate-x-0'
           }`}
         >
-          <div className="flex justify-between items-center p-3 border-b border-white/5 lg:hidden shrink-0">
-             <h2 className="text-sm font-bold text-white uppercase tracking-wider">Data Console</h2>
-             <button onClick={() => setShowMobileData(false)} className="text-slate-400 p-2 text-xl leading-none">×</button>
-          </div>
-          <div className="flex-1 overflow-hidden relative">
-            <RightPanel />
+          <div 
+            className="h-full w-[85vw] max-w-sm lg:w-[260px] bg-slate-950/90 lg:bg-transparent backdrop-blur-xl border-l border-primary/10 shadow-[-5px_0_30px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col"
+          >
+            <div className="flex justify-between items-center p-3 border-b border-white/5 lg:hidden shrink-0">
+               <h2 className="text-sm font-bold text-white uppercase tracking-wider">Console Data</h2>
+               <button onClick={() => setShowMobileData(false)} className="text-slate-400 p-2 text-xl leading-none">×</button>
+            </div>
+            <div className="flex-1 w-full h-full overflow-hidden relative">
+              <RightPanel />
+            </div>
           </div>
         </motion.aside>
 
         {/* Mobile Navigation Bar */}
-        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-2 z-10 lg:hidden glass-panel px-5 py-2.5 rounded-2xl border border-white/10 shadow-2xl shadow-black/60 scale-110 sm:scale-100">
+        <div className="fixed bottom-10 left-1/2 -translate-x-1/2 flex items-center justify-center z-10 lg:hidden glass-panel px-5 py-2.5 rounded-2xl border border-[#00F5D4]/20 shadow-[-5px_0_30px_rgba(0,0,0,0.5)] scale-110 sm:scale-100">
            <button 
              onClick={() => { setShowMobileControls(true); setShowMobileData(false); }}
-             className="flex flex-col items-center gap-1 text-cyan-400 hover:text-cyan-300 p-2 w-16"
+             className="flex flex-col items-center gap-1 text-[#00F5D4] hover:text-[#00F5D4] p-2 min-w-[80px]"
+           >
+             <span className="text-2xl">⚡</span>
+             <span className="text-[10px] uppercase font-bold tracking-wider">Command</span>
+           </button>
+           <div className="w-px h-8 bg-[#00F5D4]/20" />
+           <button 
+             onClick={() => { setShowMobileControls(false); setShowMobileData(true); }}
+             className="flex flex-col items-center gap-1 text-[#00F5D4] hover:text-[#00F5D4] p-2 min-w-[80px]"
            >
              <span className="text-2xl">🎛️</span>
-             <span className="text-[10px] uppercase font-bold tracking-wider">Controls</span>
-           </button>
-           <div className="w-px h-8 bg-white/10" />
-           <button 
-             onClick={() => { setShowMobileData(true); setShowMobileControls(false); }}
-             className="flex flex-col items-center gap-1 text-violet-400 hover:text-violet-300 p-2 w-16"
-           >
-             <span className="text-2xl">📊</span>
-             <span className="text-[10px] uppercase font-bold tracking-wider">Data</span>
+             <span className="text-[10px] uppercase font-bold tracking-wider">Console</span>
            </button>
         </div>
       </div>
